@@ -22,8 +22,15 @@ const freshAdapter = createFileStateAdapter({ filePath: file });
 const persisted = await freshAdapter.load(mission.id);
 if (!persisted || persisted.status !== 'planned') throw new Error('file_state_persistence_failed');
 
+await Promise.all([
+  state.save({ id: 'concurrent_a', context: {}, status: 'planned' }),
+  state.save({ id: 'concurrent_b', context: {}, status: 'planned' })
+]);
+const concurrent = await state.list();
+if (concurrent.length !== 3) throw new Error('file_state_concurrent_writes_lost');
+
 await freshAdapter.clear();
 const empty = await freshAdapter.list();
 if (empty.length !== 0) throw new Error('file_state_clear_failed');
 await rm(dir, { recursive: true, force: true });
-console.log(JSON.stringify({ ok: true, durableFileState: true, idempotency: true }));
+console.log(JSON.stringify({ ok: true, durableFileState: true, idempotency: true, serializedWrites: true }));

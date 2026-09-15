@@ -22,9 +22,11 @@ const runtime = createRuntime({
 await runtime.submit('cycle one', { idempotencyKey: 'continuous-1' });
 await runtime.submit('cycle two', { idempotencyKey: 'continuous-2' });
 const result = await runtime.runCycles({ maxCycles: 5 });
+const executedResults = result.cycles.filter(item => item.status !== 'idle');
 
 if (result.status !== 'completed') throw new Error('continuous_cycle_failed');
 if (result.executedCycles !== 2) throw new Error(`continuous_cycle_count_failed:${result.executedCycles}`);
-if (result.cycles.some(item => item.status !== 'completed')) throw new Error('continuous_cycle_outcome_failed');
+if (executedResults.length !== 2) throw new Error(`continuous_cycle_result_count_failed:${executedResults.length}`);
+if (executedResults.some(item => item.status !== 'completed')) throw new Error('continuous_cycle_outcome_failed');
 
 console.log(JSON.stringify({ ok: true, continuousCycles: true, executedCycles: result.executedCycles, bounded: true }));

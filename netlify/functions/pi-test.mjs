@@ -6,10 +6,17 @@ const healthBody = JSON.parse(health.body);
 if (healthBody.ok !== true || healthBody.service !== 'pi' || healthBody.ownerWriteProtected !== true) throw new Error('cloud_health_invalid');
 
 const previous = process.env.PI_OWNER_TOKEN;
+delete process.env.PI_OWNER_TOKEN;
+const unconfigured = await handler({ httpMethod: 'POST', body: JSON.stringify({ objective: 'Build a business intelligence app' }), headers: {} });
+if (unconfigured.statusCode !== 503) throw new Error('missing_owner_token_not_blocked');
+
 process.env.PI_OWNER_TOKEN = 'test-owner-token';
 try {
   const unauthorized = await handler({ httpMethod: 'POST', body: JSON.stringify({ objective: 'Build a business intelligence app' }), headers: {} });
   if (unauthorized.statusCode !== 401) throw new Error('unauthorized_request_not_rejected');
+
+  const wrong = await handler({ httpMethod: 'POST', body: JSON.stringify({ objective: 'Build a business intelligence app' }), headers: { authorization: 'Bearer wrong-token' } });
+  if (wrong.statusCode !== 401) throw new Error('wrong_token_not_rejected');
 
   const planned = await handler({ httpMethod: 'POST', body: JSON.stringify({ objective: 'Build a business intelligence app' }), headers: { authorization: 'Bearer test-owner-token' } });
   if (planned.statusCode !== 200) throw new Error('cloud_plan_failed');
@@ -20,6 +27,9 @@ try {
 
   const bad = await handler({ httpMethod: 'POST', body: '{', headers: { authorization: 'Bearer test-owner-token' } });
   if (bad.statusCode !== 400) throw new Error('invalid_json_not_rejected');
+
+  const empty = await handler({ httpMethod: 'POST', body: JSON.stringify({ objective: '' }), headers: { authorization: 'Bearer test-owner-token' } });
+  if (empty.statusCode !== 400) throw new Error('empty_objective_not_rejected');
 
   const huge = await handler({ httpMethod: 'POST', body: JSON.stringify({ objective: 'x'.repeat(4001) }), headers: { authorization: 'Bearer test-owner-token' } });
   if (huge.statusCode !== 413) throw new Error('oversized_objective_not_rejected');

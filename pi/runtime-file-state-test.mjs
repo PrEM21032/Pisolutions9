@@ -23,12 +23,15 @@ try {
 
   const persisted = await state.load(mission.id);
   if (!persisted || persisted.status !== 'completed') throw new Error('mission_not_persisted');
-  if (!persisted.result || persisted.result.truth?.verified?.length === 0) throw new Error('verified_result_not_persisted');
+  if (!persisted.result || !Array.isArray(persisted.result.completed) || !persisted.result.completed.some(item => item?.verified === true)) {
+    throw new Error('verified_result_not_persisted');
+  }
+  if (!Array.isArray(persisted.result.evidence) || persisted.result.evidence.length === 0) throw new Error('evidence_not_persisted');
 
   const duplicate = await runtime.submit('Verify durable runtime state', { idempotencyKey: 'runtime-file-state-test' });
   if (duplicate.id !== mission.id) throw new Error('idempotency_not_persistent');
 
-  console.log(JSON.stringify({ ok: true, runtimeFileState: true, idempotency: true }));
+  console.log(JSON.stringify({ ok: true, runtimeFileState: true, idempotency: true, verifiedCompletion: true }));
 } finally {
   await rm(dir, { recursive: true, force: true });
 }

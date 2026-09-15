@@ -1,0 +1,33 @@
+name: PI Team 24x7
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-team-24x7
+  cancel-in-progress: false
+
+jobs:
+  team-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: true
+      PI_AUTONOMOUS_ENABLED: 'true'
+      PI_OBJECTIVE: 'Run a safe PI Team autonomous cycle: inspect current state, execute the highest-value safe improvement, verify evidence, recover from safe blockers, and leave the system ready for the next cycle. Never spend money or perform irreversible production actions.'
+    steps:
+      - name: Checkout PI
+        uses: actions/checkout@v5
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify PI before autonomous cycle
+        run: npm test
+      - name: Run PI Team cycle
+        run: node pi/runner.mjs

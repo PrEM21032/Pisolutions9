@@ -2,8 +2,9 @@ const memory = new Map();
 
 export function saveMission(mission) {
   if (!mission?.id) throw new Error('mission_id_required');
-  memory.set(mission.id, structuredClone(mission));
-  return structuredClone(mission);
+  const copy = structuredClone(mission);
+  memory.set(mission.id, copy);
+  return structuredClone(copy);
 }
 
 export function loadMission(id) {

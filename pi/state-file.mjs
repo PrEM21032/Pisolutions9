@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rm, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 export function createFileStateAdapter({ filePath = '.pi/state.json' } = {}) {
@@ -15,10 +15,13 @@ export function createFileStateAdapter({ filePath = '.pi/state.json' } = {}) {
 
   async function writeState(items) {
     await mkdir(dirname(filePath), { recursive: true });
-    const temp = `${filePath}.tmp`;
-    await writeFile(temp, JSON.stringify(items, null, 2), 'utf8');
-    const { rename } = await import('node:fs/promises');
-    await rename(temp, filePath);
+    const temp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      await writeFile(temp, JSON.stringify(items, null, 2), 'utf8');
+      await rename(temp, filePath);
+    } finally {
+      try { await rm(temp); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    }
   }
 
   return Object.freeze({

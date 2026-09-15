@@ -10,7 +10,6 @@ const state = createStateAdapter({
   clear() { backing.clear(); }
 });
 
-let executed = 0;
 const runtime = createRuntime({
   state,
   execute: async mission => ({
@@ -22,12 +21,11 @@ const runtime = createRuntime({
 
 await runtime.submit('cycle one', { idempotencyKey: 'continuous-1' });
 await runtime.submit('cycle two', { idempotencyKey: 'continuous-2' });
-const originalExecute = runtime;
-void originalExecute;
 const result = await runtime.runCycles({ maxCycles: 5 });
-executed = result.executedCycles;
+
 if (result.status !== 'completed') throw new Error('continuous_cycle_failed');
-if (executed !== 2) throw new Error(`continuous_cycle_count_failed:${executed}`);
+if (result.executedCycles !== 2) throw new Error(`continuous_cycle_count_failed:${result.executedCycles}`);
+if (result.cycles.length !== 2) throw new Error(`continuous_cycle_result_count_failed:${result.cycles.length}`);
 if (result.cycles.some(item => item.status !== 'completed')) throw new Error('continuous_cycle_outcome_failed');
 
-console.log(JSON.stringify({ ok: true, continuousCycles: true, executedCycles: executed, bounded: true }));
+console.log(JSON.stringify({ ok: true, continuousCycles: true, executedCycles: result.executedCycles, bounded: true }));

@@ -3,10 +3,12 @@ import { createFileStateAdapter } from './state-file.mjs';
 import { planNoGpt, executeNoGptPlan } from './no-gpt-engine.mjs';
 import { createOpenAIResponsesProvider, createModelProviderAdapters, createConfiguredModelProvider } from './model-adapters.mjs';
 import { createModelRouter } from './model-router.mjs';
+import { createPersonalAIV2 } from './personal-ai-v2.mjs';
 
 const enabled = process.env.PI_AUTONOMOUS_ENABLED !== 'false';
 const objective = process.env.PI_OBJECTIVE || 'Run a safe PI runtime health cycle';
 const statePath = String(process.env.PI_STATE_FILE_PATH || '').trim();
+const personalAI = createPersonalAIV2();
 
 // Zero-cost first: deterministic PI is the default intelligence path.
 // Paid model providers are optional upgrades and never a core dependency.
@@ -23,7 +25,8 @@ const state = statePath ? createFileStateAdapter({ filePath: statePath }) : unde
 const runtime = createRuntime({
   ...(state ? { state } : {}),
   execute: async mission => {
-    const routed = await modelRouter.run({ objective: mission.objective, missionId: mission.id });
+    const recalled = personalAI.recall(mission.objective);
+    const routed = await modelRouter.run({ objective: mission.objective, missionId: mission.id, memory: recalled });
     if (!routed.ok) {
       const error = new Error(routed.reason || 'intelligence_providers_failed');
       error.code = routed.reason === 'all_model_providers_failed' ? 'provider_unavailable' : routed.reason;
@@ -31,9 +34,11 @@ const runtime = createRuntime({
     }
     return {
       ...routed.value,
+      personalAI: personalAI.snapshot(),
       evidence: [
         ...(routed.value.evidence || []),
-        { source: `model-router:${routed.provider}`, claim: JSON.stringify({ attempts: routed.attempts }) }
+        { source: `model-router:${routed.provider}`, claim: JSON.stringify({ attempts: routed.attempts }) },
+        { source: 'personal-ai-v2', claim: JSON.stringify({ recalledMemoryCount: recalled.length, stack: personalAI.snapshot() }) }
       ]
     };
   },
@@ -43,7 +48,7 @@ const runtime = createRuntime({
 });
 
 if (!enabled) {
-  console.log(JSON.stringify({ status: 'paused', mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', truth: 'verified' }, null, 2));
+  console.log(JSON.stringify({ status: 'paused', mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', personalAI: personalAI.snapshot(), truth: 'verified' }, null, 2));
   process.exit(0);
 }
 

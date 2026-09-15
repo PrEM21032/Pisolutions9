@@ -1,10 +1,12 @@
 import { createRuntime } from './runtime.mjs';
+import { createFileStateAdapter } from './state-file.mjs';
 import { planNoGpt, executeNoGptPlan } from './no-gpt-engine.mjs';
 import { createOpenAIResponsesProvider, createModelProviderAdapters, createConfiguredModelProvider } from './model-adapters.mjs';
 import { createModelRouter } from './model-router.mjs';
 
 const enabled = process.env.PI_AUTONOMOUS_ENABLED !== 'false';
 const objective = process.env.PI_OBJECTIVE || 'Run a safe PI runtime health cycle';
+const statePath = String(process.env.PI_STATE_FILE_PATH || '').trim();
 
 // Zero-cost first: deterministic PI is the default intelligence path.
 // Paid model providers are optional upgrades and never a core dependency.
@@ -16,8 +18,10 @@ const deterministic = createConfiguredModelProvider({
 const openai = process.env.OPENAI_API_KEY ? createOpenAIResponsesProvider() : null;
 const adapters = createModelProviderAdapters([deterministic, openai]);
 const modelRouter = createModelRouter({ adapters, fallbackProviders: ['deterministic', 'openai'] });
+const state = statePath ? createFileStateAdapter({ filePath: statePath }) : undefined;
 
 const runtime = createRuntime({
+  ...(state ? { state } : {}),
   execute: async mission => {
     const routed = await modelRouter.run({ objective: mission.objective, missionId: mission.id });
     if (!routed.ok) {
@@ -39,11 +43,11 @@ const runtime = createRuntime({
 });
 
 if (!enabled) {
-  console.log(JSON.stringify({ status: 'paused', mode: 'zero-cost-first', providers: modelRouter.available(), truth: 'verified' }, null, 2));
+  console.log(JSON.stringify({ status: 'paused', mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', truth: 'verified' }, null, 2));
   process.exit(0);
 }
 
 const mission = await runtime.submit(objective, { idempotencyKey: `local-cycle:${objective}` });
 const outcome = await runtime.cycle();
-console.log(JSON.stringify({ mode: 'zero-cost-first', providers: modelRouter.available(), ...outcome }, null, 2));
+console.log(JSON.stringify({ mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', ...outcome }, null, 2));
 if (outcome.status !== 'completed') process.exit(1);

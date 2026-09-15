@@ -1,0 +1,17 @@
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/pi"
+  to = "/.netlify/functions/pi"
+  status = 200
+
+[[headers]]
+  for = "/api/pi"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Cache-Control = "no-store"

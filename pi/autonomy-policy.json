@@ -1,1 +1,15 @@
-{"mode":"safe-autonomous","truthLevels":["verified","probable","speculative","unknown"],"maxRetries":3,"requireEvidenceForVerified":true,"requireIndependentVerification":true,"humanApprovalRequiredFor":["irreversible_external_action","legal_commitment","financial_transfer","secret_rotation","production_destructive_change"],"neverClaim":"durable persistence, live model execution, successful deployment, or completed external action without runtime evidence"}
+{
+  "mode": "adaptive-safe-autonomous",
+  "truthLevels": ["verified", "probable", "speculative", "unknown"],
+  "maxRetries": 3,
+  "requireEvidenceForVerified": true,
+  "requireIndependentVerification": true,
+  "blockerProtocol": {
+    "rule": "A blocker is a branch, not an endpoint.",
+    "sequence": ["detect", "diagnose", "classify", "find_alternative", "execute_safe_alternative", "verify", "continue"],
+    "optionMinimum": 2,
+    "reportOwnerOnlyWhen": ["no_safe_alternative", "human_authorization_required"]
+  },
+  "humanApprovalRequiredFor": ["irreversible_external_action", "legal_commitment", "financial_transfer", "secret_rotation", "production_destructive_change"],
+  "neverClaim": "durable persistence, live model execution, successful deployment, or completed external action without runtime evidence"
+}

@@ -16,9 +16,13 @@ const runtime = createRuntime({
   }
 });
 
-const mission = await runtime.submit('Execute and verify a PI runtime test');
+const key = 'runtime-e2e-idempotency';
+const mission = await runtime.submit('Execute and verify a PI runtime test', { idempotencyKey: key });
+const duplicate = await runtime.submit('Execute and verify a PI runtime test', { idempotencyKey: key });
+if (duplicate.id !== mission.id) throw new Error('idempotency_failed');
+
 const outcome = await runtime.cycle();
 if (outcome.status !== 'completed') throw new Error('runtime_execution_failed');
 if (!outcome.completed?.length) throw new Error('no_completed_result');
 if (!listMissions().some(item => item.id === mission.id)) throw new Error('state_persistence_adapter_failed');
-console.log(JSON.stringify({ ok: true, missionId: mission.id, status: outcome.status, verified: true }, null, 2));
+console.log(JSON.stringify({ ok: true, missionId: mission.id, status: outcome.status, verified: true, idempotent: true }, null, 2));

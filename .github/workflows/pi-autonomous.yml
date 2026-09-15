@@ -1,0 +1,22 @@
+name: PI Autonomous Cycle
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PI
+        uses: actions/checkout@v4
+      - name: Run PI cycle
+        env:
+          PI_AUTONOMOUS_ENABLED: ${{ vars.PI_AUTONOMOUS_ENABLED }}
+        run: |
+          node pi/runner.mjs

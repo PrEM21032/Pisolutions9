@@ -1,0 +1,14 @@
+{
+  "mode": "safe-autonomous",
+  "cycle": "*/15 * * * *",
+  "order": ["inspect", "plan", "build", "test", "verify", "record", "select_next"],
+  "phases": [
+    {"name":"foundation","gate":"automated_tests_pass"},
+    {"name":"owner_bridge","gate":"automated_tests_pass"},
+    {"name":"tooling","gate":"capability_and_security_tests_pass"},
+    {"name":"intelligence","gate":"model_credentials_and_output_verification"},
+    {"name":"production","gate":"owner_approval_for_protected_or_irreversible_actions"}
+  ],
+  "stop_conditions": ["credentials_required", "paid_activation", "legal_commitment", "financial_transfer", "secret_rotation", "production_destructive_change"],
+  "truth_rule": "never_claim_external_execution_or_durable_persistence_without_runtime_evidence"
+}

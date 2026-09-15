@@ -4,6 +4,8 @@ const missionTitle = document.querySelector('#missionTitle');
 const steps = document.querySelector('#steps');
 const confidence = document.querySelector('#confidence');
 const run = document.querySelector('#run');
+const ownerToken = document.querySelector('#ownerToken');
+const systemStatus = document.querySelector('#systemStatus');
 
 const templates = [
   ['Interpret objective', 'Krishna extracts the goal, constraints, success criteria and missing variables.'],
@@ -28,13 +30,46 @@ function routeObjective(text) {
   return specialists.default;
 }
 
-function renderLocalMission(text) {
+function renderLocalMission(text, note = 'Local orchestration · not yet executed') {
   const assigned = routeObjective(text);
   missionTitle.textContent = text;
   steps.innerHTML = templates.map((item, i) => `<div class="step"><i>0${i + 1}</i><div><strong>${item[0]}</strong><small>${item[1]}</small></div></div>`).join('');
-  confidence.textContent = `Local orchestration · ${assigned.join(' · ')} · not yet executed`;
+  confidence.textContent = `${note} · ${assigned.join(' · ')}`;
   mission.classList.remove('hidden');
   mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function runCloudMission(text) {
+  const token = ownerToken.value.trim();
+  if (!token) {
+    renderLocalMission(text, 'Owner token required · plan preview only');
+    systemStatus.textContent = 'Owner token required';
+    return;
+  }
+
+  run.disabled = true;
+  systemStatus.textContent = 'Krishna running…';
+  try {
+    const response = await fetch('/api/pi', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ objective: text })
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || 'cloud_request_failed');
+
+    missionTitle.textContent = body.plan.objective;
+    steps.innerHTML = body.plan.tasks.map((task, i) => `<div class="step"><i>0${i + 1}</i><div><strong>${task}</strong><small>Planned by deterministic PI · external execution not claimed</small></div></div>`).join('');
+    confidence.textContent = `Cloud plan verified · ${body.plan.domains.join(' · ')}`;
+    mission.classList.remove('hidden');
+    systemStatus.textContent = 'Cloud runtime ready';
+    mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (error) {
+    renderLocalMission(text, `Cloud runtime blocked · ${error.message}`);
+    systemStatus.textContent = 'Cloud runtime blocked';
+  } finally {
+    run.disabled = false;
+  }
 }
 
 document.querySelectorAll('[data-command]').forEach(button => {
@@ -43,5 +78,5 @@ document.querySelectorAll('[data-command]').forEach(button => {
 
 run.addEventListener('click', () => {
   const text = command.value.trim() || 'Build the next PI capability';
-  renderLocalMission(text);
+  runCloudMission(text);
 });

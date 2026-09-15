@@ -1,6 +1,7 @@
 import { createMission, markFailure, safeOutcome } from './core.mjs';
 import { createQueue } from './queue.mjs';
-import { createMemoryStateAdapter } from './state-adapter.mjs';
+import { createStateAdapter } from './state-adapter.mjs';
+import { saveMission, loadMission, findMissionByIdempotencyKey, listMissions, clearState } from './state.mjs';
 import { verifyOutcome } from './verify.mjs';
 import { createObserver } from './observability.mjs';
 import { createCostGuard } from './cost-guard.mjs';
@@ -8,13 +9,21 @@ import { createDeadLetterStore } from './dead-letter.mjs';
 import { createDelegationPlan, validateDelegation } from './delegation.mjs';
 import { createExecutionPolicy } from './policy.mjs';
 
+const defaultState = createStateAdapter({
+  save: saveMission,
+  load: loadMission,
+  findByIdempotencyKey: findMissionByIdempotencyKey,
+  list: listMissions,
+  clear: clearState
+});
+
 export function createRuntime({
   execute = async () => ({ completed: [], evidence: [], status: 'blocked' }),
   verify = null,
   observer = createObserver(),
   cost = {},
   deadLetters = createDeadLetterStore(),
-  state = createMemoryStateAdapter(),
+  state = defaultState,
   policy = createExecutionPolicy()
 } = {}) {
   if (!state || typeof state.save !== 'function' || typeof state.load !== 'function') throw new Error('invalid_state_adapter');

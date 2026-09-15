@@ -12,6 +12,14 @@ export function loadMission(id) {
   return value ? structuredClone(value) : null;
 }
 
+export function findMissionByIdempotencyKey(key) {
+  if (!key) return null;
+  for (const value of memory.values()) {
+    if (value?.context?.idempotencyKey === key) return structuredClone(value);
+  }
+  return null;
+}
+
 export function listMissions() {
   return [...memory.values()].map(value => structuredClone(value));
 }

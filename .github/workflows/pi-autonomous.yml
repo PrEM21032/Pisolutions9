@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout PI
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Run PI cycle
         env:
           PI_AUTONOMOUS_ENABLED: ${{ vars.PI_AUTONOMOUS_ENABLED }}

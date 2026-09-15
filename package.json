@@ -1,1 +1,1 @@
-{"name":"pi-solutions","private":true,"type":"module","scripts":{"test":"node pi/self-test.mjs && node pi/execute-verify-test.mjs && node pi/foundation-e2e-test.mjs && node pi/production-readiness-test.mjs"}}
+{"name":"pi-solutions","private":true,"type":"module","scripts":{"test":"node pi/self-test.mjs && node pi/execute-verify-test.mjs && node pi/foundation-e2e-test.mjs && node pi/production-readiness-test.mjs && node pi/intelligence-test.mjs"}}

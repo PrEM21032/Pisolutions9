@@ -15,6 +15,11 @@ export function createToolRegistry() {
       return contract;
     },
     has(name) { return tools.has(name); },
+    async call(name, input = {}) {
+      const tool = tools.get(name);
+      if (!tool) throw new Error(`tool_not_registered:${name}`);
+      return tool.execute(input);
+    },
     async execute(name, input = {}) {
       const tool = tools.get(name);
       if (!tool) throw new Error(`tool_unavailable:${name}`);

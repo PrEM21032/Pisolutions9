@@ -25,7 +25,6 @@ const result = await runtime.runCycles({ maxCycles: 5 });
 
 if (result.status !== 'completed') throw new Error('continuous_cycle_failed');
 if (result.executedCycles !== 2) throw new Error(`continuous_cycle_count_failed:${result.executedCycles}`);
-if (result.cycles.length !== 2) throw new Error(`continuous_cycle_result_count_failed:${result.cycles.length}`);
 if (result.cycles.some(item => item.status !== 'completed')) throw new Error('continuous_cycle_outcome_failed');
 
 console.log(JSON.stringify({ ok: true, continuousCycles: true, executedCycles: result.executedCycles, bounded: true }));

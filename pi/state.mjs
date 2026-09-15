@@ -12,7 +12,7 @@ export function loadMission(id) {
 }
 
 export function listMissions() {
-  return [...memory.values()].map(structuredClone);
+  return [...memory.values()].map(value => structuredClone(value));
 }
 
 export function clearState() { memory.clear(); }

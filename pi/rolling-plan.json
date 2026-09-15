@@ -1,0 +1,31 @@
+{
+  "mode": "rolling-safe-autonomous-build",
+  "sequence": [
+    {
+      "day": "tomorrow",
+      "objective": "Live intelligence foundation",
+      "deliverables": ["durable-state-adapter-boundary", "model-provider-contract", "specialist-delegation-contract", "execution-policy-integration", "e2e-runtime-test"]
+    },
+    {
+      "day": "following-day",
+      "objective": "Owner-to-runtime bridge",
+      "deliverables": ["objective-ingestion", "mission-bridge", "outcome-api", "truth-evidence-rendering-contract", "bridge-e2e-test"]
+    },
+    {
+      "day": "next",
+      "objective": "Real tooling",
+      "deliverables": ["capability-aware-tools", "bounded-adapters", "evidence-normalization", "independent-tool-verification"]
+    },
+    {
+      "day": "next",
+      "objective": "Real intelligence",
+      "deliverables": ["approved-model-adapter", "specialist-routing", "model-cost-limits", "model-output-verification"]
+    },
+    {
+      "day": "next",
+      "objective": "Production readiness",
+      "deliverables": ["durable-production-state", "auditability", "security-review", "full-e2e", "production-gate", "deployment-verification"]
+    }
+  ],
+  "gate": "stop only for credentials, protected production approval, paid activation, legal/financial commitment, or irreversible production action"
+}

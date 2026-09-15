@@ -8,7 +8,7 @@ import { createCostGuard } from './cost-guard.mjs';
 import { createDeadLetterStore } from './dead-letter.mjs';
 import { createDelegationPlan, validateDelegation } from './delegation.mjs';
 import { createExecutionPolicy } from './policy.mjs';
-import { createAlternativePlan, runAlternativePlan } from './blocker-router.mjs';
+import { classifyBlocker, createAlternativePlan, runAlternativePlan } from './blocker-router.mjs';
 
 const defaultState = createStateAdapter({
   save: saveMission,
@@ -88,12 +88,27 @@ export function createRuntime({
       observer.emit({ missionId: mission.id, step: 'verify', status: outcome.status, truth: outcome.truth?.verified?.length ? 'verified' : 'probable', durationMs: Date.now() - started, message: 'cycle_verified' });
       return outcome;
     } catch (error) {
-      mission = markFailure(mission, error);
-      await state.save(mission);
+      const blocker = classifyBlocker(error);
+      const humanGate = !blocker.safeToReroute;
+      mission = humanGate
+        ? await state.save({ ...mission, status: 'blocked' })
+        : markFailure(mission, error);
+      const nextAction = humanGate ? 'owner_required' : null;
       if (mission.status === 'retrying') queue.enqueue(mission);
       else if (mission.status === 'blocked') deadLetters.add(mission, error);
-      observer.emit({ missionId: mission.id, step: 'recovery', status: mission.status, truth: 'unknown', durationMs: Date.now() - started, message: String(error?.message || error) });
-      return safeOutcome(mission, { status: mission.status, uncertainty: [String(error?.message || error)] });
+      observer.emit({
+        missionId: mission.id,
+        step: 'recovery',
+        status: mission.status,
+        truth: 'unknown',
+        durationMs: Date.now() - started,
+        message: humanGate ? `owner_required:${blocker.reason}` : blocker.reason
+      });
+      return safeOutcome(mission, {
+        status: mission.status,
+        uncertainty: [String(error?.message || error)],
+        nextAction
+      });
     }
   }
 

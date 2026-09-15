@@ -15,7 +15,7 @@ if (!policy.humanApprovalRequiredFor?.includes('financial_transfer')) throw new 
 const personalAI = createPersonalAIV2({ maxMemory: 10 });
 personalAI.remember({ content: 'Owner prefers zero-cost-first execution', tags: ['preference', 'cost'] });
 const goal = personalAI.createGoal({ title: 'Release PI V1', objective: 'Ship the verified first usable PI system' });
-personalAI.addMilestone({ goalId: goal.id, title: 'Integrated release gate', status: 'ready' });
+personalAI.addMilestone(goal.id, 'Integrated release gate');
 personalAI.createTask({ goalId: goal.id, title: 'Run V1 verification', status: 'ready' });
 
 const executionBridge = createPersonalExecutionBridge({

@@ -2,6 +2,8 @@ import { mkdir, readFile, writeFile, rm, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 export function createFileStateAdapter({ filePath = '.pi/state.json' } = {}) {
+  let writeChain = Promise.resolve();
+
   async function readState() {
     try {
       const raw = await readFile(filePath, 'utf8');
@@ -15,7 +17,7 @@ export function createFileStateAdapter({ filePath = '.pi/state.json' } = {}) {
 
   async function writeState(items) {
     await mkdir(dirname(filePath), { recursive: true });
-    const temp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    const temp = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
     try {
       await writeFile(temp, JSON.stringify(items, null, 2), 'utf8');
       await rename(temp, filePath);
@@ -24,15 +26,27 @@ export function createFileStateAdapter({ filePath = '.pi/state.json' } = {}) {
     }
   }
 
+  async function mutate(mutator) {
+    const operation = writeChain.then(async () => {
+      const items = await readState();
+      const next = await mutator(items);
+      await writeState(next);
+      return next;
+    });
+    writeChain = operation.catch(() => {});
+    return operation;
+  }
+
   return Object.freeze({
     async save(mission) {
       if (!mission?.id) throw new Error('mission_id_required');
-      const items = await readState();
-      const index = items.findIndex(item => item?.id === mission.id);
       const copy = structuredClone(mission);
-      if (index >= 0) items[index] = copy;
-      else items.push(copy);
-      await writeState(items);
+      await mutate(items => {
+        const index = items.findIndex(item => item?.id === copy.id);
+        if (index >= 0) items[index] = copy;
+        else items.push(copy);
+        return items;
+      });
       return structuredClone(copy);
     },
     async load(id) {
@@ -48,7 +62,11 @@ export function createFileStateAdapter({ filePath = '.pi/state.json' } = {}) {
       return (await readState()).map(item => structuredClone(item));
     },
     async clear() {
-      try { await rm(filePath); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+      const operation = writeChain.then(async () => {
+        try { await rm(filePath); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+      });
+      writeChain = operation.catch(() => {});
+      return operation;
     }
   });
 }

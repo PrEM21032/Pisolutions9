@@ -112,5 +112,20 @@ export function createRuntime({
     }
   }
 
-  return { submit, cycle, queue, cost: guard, deadLetters, policy, state };
+  async function runCycles({ maxCycles = 1 } = {}) {
+    const limit = Number.isInteger(maxCycles) && maxCycles >= 0 ? maxCycles : 1;
+    const outcomes = [];
+    for (let index = 0; index < limit; index += 1) {
+      const outcome = await cycle();
+      outcomes.push(outcome);
+      if (outcome.status === 'idle') break;
+    }
+    return {
+      status: outcomes.some(outcome => outcome.status === 'blocked') ? 'blocked' : 'completed',
+      cycles: outcomes,
+      executedCycles: outcomes.filter(outcome => outcome.status !== 'idle').length
+    };
+  }
+
+  return { submit, cycle, runCycles, queue, cost: guard, deadLetters, policy, state };
 }

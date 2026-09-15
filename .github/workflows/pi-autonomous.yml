@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pi-autonomous-cycle
+  cancel-in-progress: false
+
 jobs:
   cycle:
     runs-on: ubuntu-latest

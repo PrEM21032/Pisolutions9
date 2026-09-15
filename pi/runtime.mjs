@@ -8,6 +8,7 @@ import { createCostGuard } from './cost-guard.mjs';
 import { createDeadLetterStore } from './dead-letter.mjs';
 import { createDelegationPlan, validateDelegation } from './delegation.mjs';
 import { createExecutionPolicy } from './policy.mjs';
+import { createAlternativePlan, runAlternativePlan } from './blocker-router.mjs';
 
 const defaultState = createStateAdapter({
   save: saveMission,
@@ -19,6 +20,7 @@ const defaultState = createStateAdapter({
 
 export function createRuntime({
   execute = async () => ({ completed: [], evidence: [], status: 'blocked' }),
+  alternatives = [],
   verify = null,
   observer = createObserver(),
   cost = {},
@@ -47,6 +49,26 @@ export function createRuntime({
     return enriched;
   }
 
+  async function executeMission(mission) {
+    try {
+      return await execute(mission, { cost: guard, policy });
+    } catch (error) {
+      const plan = createAlternativePlan({ blocker: error, alternatives });
+      observer.emit({
+        missionId: mission.id,
+        step: 'recovery',
+        status: plan.ownerRequired ? 'blocked' : 'rerouting',
+        truth: 'unknown',
+        message: plan.ownerRequired ? 'no_safe_fallback' : 'primary_failed_fallback_started'
+      });
+      if (plan.ownerRequired) throw error;
+      const fallback = await runAlternativePlan(plan, option => option.execute(mission, { cost: guard, policy }));
+      if (fallback.status !== 'completed') throw error;
+      observer.emit({ missionId: mission.id, step: 'recovery', status: 'completed', truth: 'probable', message: `fallback_selected:${fallback.selected}` });
+      return fallback.attempts.at(-1).result;
+    }
+  }
+
   async function cycle() {
     const queued = queue.next();
     if (!queued) return { status: 'idle' };
@@ -56,7 +78,7 @@ export function createRuntime({
     try {
       mission = await state.save({ ...mission, status: 'running' });
       guard.action();
-      const result = await execute(mission, { cost: guard, policy });
+      const result = await executeMission(mission);
       const gate = verifyOutcome(result);
       if (!gate.ok) throw new Error('verification_failed');
       if (result.status === 'completed' && (!Array.isArray(result.evidence) || result.evidence.length === 0)) throw new Error('evidence_required_for_completed');

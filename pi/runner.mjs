@@ -1,32 +1,20 @@
 import { createRuntime } from './runtime.mjs';
-import { routeSpecialists } from './specialist-router.mjs';
+import { planNoGpt, executeNoGptPlan } from './no-gpt-engine.mjs';
 
 const enabled = process.env.PI_AUTONOMOUS_ENABLED !== 'false';
 const objective = process.env.PI_OBJECTIVE || 'Run a safe PI runtime health cycle';
 
-// No-GPT mode: PI can run its deterministic orchestration, routing, execution
-// boundaries and verification without any model provider or API key.
-const availableSpecialists = ['research', 'data', 'verification', 'business', 'earth', 'engineering', 'security'];
-
+// No-GPT mode is the default execution path. It uses deterministic rules and
+// local code only; it does not require an LLM, model provider, or API key.
 const runtime = createRuntime({
   execute: async mission => {
-    const selected = routeSpecialists(mission.objective, availableSpecialists);
-    const completed = [
-      { verified: true, claim: 'objective accepted and normalized', missionId: mission.id },
-      { verified: true, claim: `deterministic specialists routed: ${selected.join(', ') || 'none'}`, missionId: mission.id },
-      { verified: true, claim: 'bounded local execution cycle completed', missionId: mission.id }
-    ];
-    const evidence = [
-      { source: 'pi-local-orchestrator', claim: 'no model provider required' },
-      { source: 'pi-specialist-router', claim: JSON.stringify({ objective: mission.objective, selected }) },
-      { source: 'pi-runtime', claim: 'bounded runtime returned a result' }
-    ];
-    return { status: 'completed', completed, evidence, nextAction: null, uncertainty: [] };
+    const plan = planNoGpt(mission.objective);
+    return executeNoGptPlan(plan);
   }
 });
 
 if (!enabled) {
-  console.log(JSON.stringify({ status: 'paused', mode: 'safe-autonomous-cycle', truth: 'verified' }, null, 2));
+  console.log(JSON.stringify({ status: 'paused', mode: 'no-gpt', truth: 'verified' }, null, 2));
   process.exit(0);
 }
 

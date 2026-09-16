@@ -3,7 +3,7 @@ import { understandHumanInput } from './human-understanding.mjs';
 const DOMAIN_RULES = Object.freeze([
   { name: 'business', pattern: /business|market|sales|customer|revenue|export|import|price|profit|investment/i, tasks: ['define_business_goal', 'identify_constraints', 'build_decision_matrix'] },
   { name: 'earth', pattern: /earth|satellite|land|crop|agriculture|map|geospatial|location|farm/i, tasks: ['define_area_of_interest', 'identify_data_sources', 'build_evidence_checklist'] },
-  { name: 'engineering', pattern: /build|code|deploy|software|app|github|netlify|feature|fix|test|api/i, tasks: ['inspect_system', 'change_code', 'run_tests', 'verify_change'] },
+  { name: 'engineering', pattern: /build|code|deploy|software|app|github|netlify|feature|fix|test|api|roadmap.*\bPI\b|\bPI\b.*roadmap/i, tasks: ['inspect_system', 'change_code', 'run_tests', 'verify_change'] },
   { name: 'research', pattern: /research|compare|find|learn|analyze|study|investigate/i, tasks: ['decompose_question', 'collect_available_evidence', 'compare_findings'] }
 ]);
 

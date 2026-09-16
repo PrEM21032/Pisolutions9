@@ -1,3 +1,5 @@
+import { understandHumanInput } from './human-understanding.mjs';
+
 const DOMAIN_RULES = Object.freeze([
   { name: 'business', pattern: /business|market|sales|customer|revenue|export|import|price|profit|investment/i, tasks: ['define_business_goal', 'identify_constraints', 'build_decision_matrix'] },
   { name: 'earth', pattern: /earth|satellite|land|crop|agriculture|map|geospatial|location|farm/i, tasks: ['define_area_of_interest', 'identify_data_sources', 'build_evidence_checklist'] },
@@ -40,28 +42,57 @@ function customerResponse(intent, text) {
   }
 }
 
+function primaryHumanIntent(humanUnderstanding) {
+  return humanUnderstanding.intents.find(intent => intent !== 'general') || 'general';
+}
+
+function humanRoute(intent) {
+  switch (intent) {
+    case 'information': return 'information';
+    case 'decision_support': return 'decision-support';
+    case 'creation': return 'creation';
+    case 'troubleshooting': return 'troubleshooting';
+    case 'research': return 'research';
+    case 'planning': return 'planning';
+    default: return 'general';
+  }
+}
+
 export function planNoGpt(objective = '') {
   const text = String(objective).trim();
   if (!text) throw new Error('objective_required');
+
+  const humanUnderstanding = understandHumanInput(text);
   const conversationalIntent = classifyConversational(text);
   if (conversationalIntent) {
-    return Object.freeze({ mode: 'no-gpt', objective: text, route: 'conversation', intent: conversationalIntent, domains: [conversationalIntent], tasks: ['understand_request', 'respond_or_request_required_data'], planner: 'deterministic-intent-router', customerIntent: conversationalIntent });
+    return Object.freeze({ mode: 'no-gpt', objective: text, route: 'conversation', intent: conversationalIntent, domains: [conversationalIntent], tasks: ['understand_request', 'respond_or_request_required_data'], planner: 'deterministic-intent-router', customerIntent: conversationalIntent, humanUnderstanding });
   }
+
+  const humanIntent = primaryHumanIntent(humanUnderstanding);
   const matched = DOMAIN_RULES.filter(rule => rule.pattern.test(text));
   const domains = matched.length ? matched.map(rule => rule.name) : ['general'];
   const tasks = [...new Set(matched.flatMap(rule => rule.tasks))];
   if (!tasks.length) tasks.push('define_objective', 'identify_constraints', 'verify_available_evidence');
-  return Object.freeze({ mode: 'no-gpt', objective: text, route: 'mission', domains, tasks, planner: 'deterministic-rule-engine', customerIntent: null });
+
+  if (humanUnderstanding.needsClarification) {
+    return Object.freeze({ mode: 'no-gpt', objective: text, route: 'clarification', intent: humanIntent, domains, tasks: ['clarify_objective', 'identify_constraints'], planner: 'human-first-router', customerIntent: null, humanUnderstanding });
+  }
+
+  return Object.freeze({ mode: 'no-gpt', objective: text, route: humanRoute(humanIntent), intent: humanIntent, domains, tasks, planner: 'human-first-router', customerIntent: null, humanUnderstanding });
 }
 
 export function executeNoGptPlan(plan) {
   if (!plan || plan.mode !== 'no-gpt') throw new Error('no_gpt_plan_required');
-  const response = plan.route === 'conversation' ? customerResponse(plan.intent, plan.objective) : null;
+  const response = plan.route === 'conversation'
+    ? customerResponse(plan.intent, plan.objective)
+    : plan.route === 'clarification'
+      ? { title: 'Clarification needed', message: 'I understand that you need help, but I need a little more detail about the objective before choosing the work path.', dataRequired: 'clear objective or desired outcome' }
+      : null;
   return {
     completed: [{ verified: true, task: 'deterministic_route_generated', order: 1 }],
     planned: plan.tasks.map((task, index) => ({ task, order: index + 1 })),
     evidence: [
-      { source: 'pi-no-gpt-engine', claim: 'deterministic route generated; no external action executed' },
+      { source: 'pi-no-gpt-engine', claim: 'deterministic human-first route generated; no external action executed' },
       { source: 'pi-no-gpt-engine', claim: JSON.stringify({ route: plan.route, intent: plan.intent || null, domains: plan.domains, tasks: plan.tasks }) }
     ],
     status: 'completed',

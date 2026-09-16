@@ -51,7 +51,7 @@ function localMath(text) {
   const expression = text.replace(/^(what is|calculate|solve)\s+/i, '').replace(/[?=]+$/g, '').trim();
   if (!/^[0-9+*/().\s-]+$/.test(expression) || !/[0-9]/.test(expression)) return null;
   try {
-    const value = Function(`\"use strict\"; return (${expression})`)();
+    const value = Function(`"use strict"; return (${expression})`)();
     return Number.isFinite(value) ? `${expression} = ${value}` : null;
   } catch { return null; }
 }
@@ -74,7 +74,19 @@ function planLocal(text) {
 
 function showCustomerResponse(text, response, plan, source) {
   missionTitle.textContent = response.title;
-  steps.innerHTML = `<div class=\"step\"><i>01</i><div><strong>${response.message}</strong><small>${source}</small></div></div>`;
+  steps.replaceChildren();
+  const step = document.createElement('div');
+  step.className = 'step';
+  const number = document.createElement('i');
+  number.textContent = '01';
+  const content = document.createElement('div');
+  const answer = document.createElement('strong');
+  answer.textContent = response.message;
+  const meta = document.createElement('small');
+  meta.textContent = source;
+  content.append(answer, meta);
+  step.append(number, content);
+  steps.append(step);
   confidence.textContent = source;
   mission.classList.remove('hidden');
   mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -84,7 +96,7 @@ function showMission(text, plan, status, source) {
   missionTitle.textContent = text;
   steps.innerHTML = plan.tasks.map((task, i) => {
     const [label, detail] = TASK_LABELS[task] || [task.replaceAll('_', ' '), 'Planned step.'];
-    return `<div class=\"step\"><i>${String(i + 1).padStart(2, '0')}</i><div><strong>${label}</strong><small>${detail}</small></div></div>`;
+    return `<div class="step"><i>${String(i + 1).padStart(2, '0')}</i><div><strong>${label}</strong><small>${detail}</small></div></div>`;
   }).join('');
   confidence.textContent = `${status} · ${source}`;
   mission.classList.remove('hidden');
@@ -94,9 +106,12 @@ function showMission(text, plan, status, source) {
 function runLocalMission(text, note = 'Local zero-cost mode') {
   const plan = planLocal(text);
   const response = plan.route === 'conversation' ? localResponse(text, plan.intent) : null;
-  if (response) showCustomerResponse(text, response, plan, note);
-  else showMission(text, plan, note, 'No external action claimed');
-  systemStatus.textContent = 'Local PI ready';
+  if (response) {
+    showCustomerResponse(text, response, plan, 'PI local');
+  } else {
+    showCustomerResponse(text, { title: 'PI', message: 'PI’s live answer service is temporarily unavailable. Please try again in a moment.' }, plan, 'PI');
+  }
+  systemStatus.textContent = 'PI ready';
 }
 
 function chatApiUrl() {
@@ -116,7 +131,7 @@ async function runCustomerChat(text) {
     systemStatus.textContent = 'PI ready';
     return true;
   } catch {
-    runLocalMission(text, 'Local fallback');
+    runLocalMission(text);
     return false;
   } finally { run.disabled = false; }
 }

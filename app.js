@@ -94,10 +94,23 @@ function showCustomerResponse(text, response, plan, source) {
 
 function showMission(text, plan, status, source) {
   missionTitle.textContent = text;
-  steps.innerHTML = plan.tasks.map((task, i) => {
-    const [label, detail] = TASK_LABELS[task] || [task.replaceAll('_', ' '), 'Planned step.'];
-    return `<div class="step"><i>${String(i + 1).padStart(2, '0')}</i><div><strong>${label}</strong><small>${detail}</small></div></div>`;
-  }).join('');
+  steps.replaceChildren();
+  const tasks = Array.isArray(plan?.tasks) ? plan.tasks : [];
+  tasks.forEach((task, index) => {
+    const [label, detail] = TASK_LABELS[task] || [String(task || 'planned step').replaceAll('_', ' '), 'Planned step.'];
+    const step = document.createElement('div');
+    step.className = 'step';
+    const number = document.createElement('i');
+    number.textContent = String(index + 1).padStart(2, '0');
+    const content = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = label;
+    const description = document.createElement('small');
+    description.textContent = detail;
+    content.append(title, description);
+    step.append(number, content);
+    steps.append(step);
+  });
   confidence.textContent = `${status} · ${source}`;
   mission.classList.remove('hidden');
   mission.scrollIntoView({ behavior: 'smooth', block: 'center' });

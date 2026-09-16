@@ -60,7 +60,7 @@ export function getRunnableSteps(graph) {
   const byId = new Map(graph.steps.map(step => [step.id, step]));
   return graph.steps.filter(step => {
     if (step.state !== 'queued' && step.state !== 'retrying') return false;
-    return step.dependsOn.every(id => TERMINAL_STATES.has(byId.get(id).state) && byId.get(id).state === 'verified');
+    return step.dependsOn.every(id => TERMINAL_STATES.has(byId.get(id).state));
   }).slice(0, graph.maxParallel);
 }
 

@@ -54,7 +54,11 @@ if (!enabled) {
   process.exit(0);
 }
 
-const mission = await runtime.submit(objective, { idempotencyKey: `local-cycle:${objective}` });
+// A scheduled autonomous invocation is a distinct run. Preserve idempotency for
+// retries of the same GitHub Actions run, while preventing later scheduled runs
+// from reusing an already-completed mission and going immediately idle.
+const runIdentity = String(process.env.GITHUB_RUN_ID || process.env.PI_RUN_ID || Date.now());
+const mission = await runtime.submit(objective, { idempotencyKey: `local-cycle:${objective}:${runIdentity}` });
 const outcome = await runtime.runCycles({ maxCycles });
 console.log(JSON.stringify({ mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', maxCycles, missionId: mission.id, ...outcome }, null, 2));
 if (outcome.status !== 'completed') process.exit(1);

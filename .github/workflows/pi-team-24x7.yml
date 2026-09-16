@@ -19,6 +19,7 @@ jobs:
     env:
       CI: true
       PI_AUTONOMOUS_ENABLED: 'true'
+      PI_MAX_CYCLES: '3'
       PI_OBJECTIVE: 'Run a safe PI Team autonomous cycle: inspect current state, execute the highest-value safe improvement, verify evidence, recover from safe blockers, and leave the system ready for the next cycle. Never spend money or perform irreversible production actions.'
     steps:
       - name: Checkout PI
@@ -29,5 +30,5 @@ jobs:
           node-version: 22
       - name: Verify PI before autonomous cycle
         run: npm test
-      - name: Run PI Team cycle
+      - name: Run bounded PI Team cycle loop
         run: node pi/runner.mjs

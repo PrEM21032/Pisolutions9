@@ -18,6 +18,16 @@ function json(body, status, request) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders(origin) });
 }
 
+function providerError(response) {
+  if (response.status === 401) return { error: 'chat_provider_auth_failed', status: 502 };
+  if (response.status === 403) return { error: 'chat_provider_access_denied', status: 502 };
+  if (response.status === 404) return { error: 'chat_provider_model_or_endpoint_not_found', status: 502 };
+  if (response.status === 429) return { error: 'chat_provider_rate_limited', status: 503 };
+  if (response.status >= 500) return { error: 'chat_provider_server_error', status: 503 };
+  if (response.status >= 400) return { error: 'chat_provider_request_rejected', status: 502 };
+  return { error: 'chat_provider_unavailable', status: 503 };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -46,13 +56,16 @@ export default {
           input: message
         })
       });
+      if (!response.ok) {
+        const failure = providerError(response);
+        return json({ ok: false, error: failure.error }, failure.status, request);
+      }
       const body = await response.json();
-      if (!response.ok) return json({ ok: false, error: 'chat_provider_unavailable' }, 503, request);
       const answer = body?.output_text?.trim() || body?.output?.flatMap(item => item?.content || []).find(part => part?.type === 'output_text')?.text?.trim();
       if (!answer) return json({ ok: false, error: 'empty_model_response' }, 502, request);
       return json({ ok: true, answer, source: 'pi-chat-model', truth: 'model-response' }, 200, request);
     } catch {
-      return json({ ok: false, error: 'chat_provider_unavailable' }, 503, request);
+      return json({ ok: false, error: 'chat_provider_network_error' }, 503, request);
     }
   }
 };

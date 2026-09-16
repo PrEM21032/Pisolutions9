@@ -21,6 +21,8 @@ jobs:
           node-version: 22
       - name: Self-test
         run: node pi/self-test.mjs
+      - name: Conversational routing regression
+        run: node pi/conversational-routing-test.mjs
       - name: Live production HTTP smoke test
         run: |
           set -euo pipefail

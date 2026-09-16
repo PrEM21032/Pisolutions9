@@ -28,9 +28,10 @@ const outcome = await runtime.cycle();
 const persisted = await state.load(mission.id);
 
 assert.equal(outcome.status, 'completed');
-assert.equal(outcome.completed.length, 4);
+// The runtime mission graph contains four specialist work items plus its final verification step.
+assert.equal(outcome.completed.length, 5);
 assert.ok(outcome.completed.every(item => item.verified === true));
-assert.equal(outcome.evidence.length, 4);
+assert.equal(outcome.evidence.length, 5);
 assert.ok(persisted.missionGraph);
 assert.ok(persisted.missionGraph.steps.every(step => step.state === 'verified'));
 

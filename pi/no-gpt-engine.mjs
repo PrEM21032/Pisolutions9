@@ -37,7 +37,7 @@ function mathAnswer(text) {
   const expression = text.replace(/^(what is|calculate|solve)\s+/i, '').replace(/[?=]+$/g, '').trim();
   if (!/^[0-9+*/().\s-]+$/.test(expression) || !/[0-9]/.test(expression)) return null;
   try {
-    const value = Function(`\"use strict\"; return (${expression})`)();
+    const value = Function(`"use strict"; return (${expression})`)();
     if (!Number.isFinite(value)) return null;
     return `${expression} = ${value}`;
   } catch { return null; }
@@ -78,6 +78,17 @@ export function planNoGpt(objective = '') {
 
   const humanUnderstanding = understandHumanInput(text);
   const conversationalIntent = classifyConversational(text);
+
+  // A troubleshooting question can syntactically resemble an explanation.
+  // Preserve the human objective route instead of collapsing it into conversation.
+  if (conversationalIntent === 'troubleshooting') {
+    const matched = DOMAIN_RULES.filter(rule => rule.pattern.test(text));
+    const domains = matched.length ? matched.map(rule => rule.name) : ['general'];
+    const domainTasks = matched.flatMap(rule => rule.tasks);
+    const tasks = [...new Set([...INTENT_TASKS.troubleshooting, ...domainTasks])];
+    return Object.freeze({ mode: 'no-gpt', objective: text, route: 'troubleshooting', intent: 'troubleshooting', domains, tasks, planner: 'human-first-router', customerIntent: null, humanUnderstanding });
+  }
+
   if (conversationalIntent) {
     return Object.freeze({ mode: 'no-gpt', objective: text, route: 'conversation', intent: conversationalIntent, domains: [conversationalIntent], tasks: ['understand_request', 'respond_or_request_required_data'], planner: 'deterministic-intent-router', customerIntent: conversationalIntent, humanUnderstanding });
   }
@@ -102,7 +113,9 @@ export function executeNoGptPlan(plan) {
     ? customerResponse(plan.intent, plan.objective)
     : plan.route === 'clarification'
       ? { title: 'Clarification needed', message: 'I understand that you need help, but I need a little more detail about the objective before choosing the work path.', dataRequired: 'clear objective or desired outcome' }
-      : null;
+      : plan.route === 'troubleshooting'
+        ? customerResponse('troubleshooting', plan.objective)
+        : null;
   return {
     completed: [{ verified: true, task: 'deterministic_route_generated', order: 1 }],
     planned: plan.tasks.map((task, index) => ({ task, order: index + 1 })),

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createMissionGraph, getRunnableSteps, isMissionComplete } from './mission-graph.mjs';
 import { getSpecialistContract, validateSpecialistResult } from './specialist-contracts.mjs';
+import { createV2MissionGraph } from './v2-mission-plan.mjs';
 
 const graph = createMissionGraph({
   missionId: 'v2-foundation',
@@ -45,25 +46,17 @@ assert.throws(() => validateSpecialistResult('research', {
   result: 'bad', evidence: 'not-an-array', truthLevel: 'unknown', failureClass: 'unknown'
 }), /evidence/);
 
-const blockedDependency = createMissionGraph({
-  missionId: 'blocked-dependency',
-  objective: 'blocked work cannot unlock dependents',
-  steps: [
-    { id: 'blocked', dependsOn: [], state: 'blocked' },
-    { id: 'downstream', dependsOn: ['blocked'], state: 'queued' }
-  ]
-});
-assert.deepEqual(getRunnableSteps(blockedDependency), []);
-
-const deadLetterDependency = createMissionGraph({
-  missionId: 'dead-letter-dependency',
-  objective: 'dead-lettered work cannot unlock dependents',
-  steps: [
-    { id: 'dead', dependsOn: [], state: 'dead-lettered' },
-    { id: 'downstream', dependsOn: ['dead'], state: 'queued' }
-  ]
-});
-assert.deepEqual(getRunnableSteps(deadLetterDependency), []);
+for (const terminalState of ['blocked', 'dead-lettered']) {
+  const dependencyGraph = createMissionGraph({
+    missionId: `${terminalState}-dependency`,
+    objective: `${terminalState} work cannot unlock dependents`,
+    steps: [
+      { id: 'dependency', dependsOn: [], state: terminalState },
+      { id: 'downstream', dependsOn: ['dependency'], state: 'queued' }
+    ]
+  });
+  assert.deepEqual(getRunnableSteps(dependencyGraph), []);
+}
 
 const verifiedDependency = createMissionGraph({
   missionId: 'verified-dependency',
@@ -86,4 +79,14 @@ const parallelGraph = createMissionGraph({
   ]
 });
 assert.deepEqual(getRunnableSteps(parallelGraph).map(step => step.id), ['a', 'b']);
+
+const planned = createV2MissionGraph({
+  id: 'mission-plan-test',
+  objective: 'build a market research system',
+  specialists: ['business', 'research', 'data', 'security']
+}, { maxParallel: 2 });
+assert.deepEqual(getRunnableSteps(planned).map(step => step.specialist), ['business', 'research']);
+assert.equal(planned.steps.at(-1).id, 'verify');
+assert.deepEqual(planned.steps.at(-1).dependsOn, planned.steps.slice(0, -1).map(step => step.id));
+
 console.log('PI V2 foundation tests passed');

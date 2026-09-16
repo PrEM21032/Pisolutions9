@@ -1,4 +1,5 @@
 const TERMINAL_STATES = new Set(['verified', 'completed', 'blocked', 'dead-lettered']);
+const DEPENDENCY_SUCCESS_STATES = new Set(['verified', 'completed']);
 const VALID_STATES = new Set(['queued', 'running', 'retrying', 'verified', 'completed', 'blocked', 'dead-lettered']);
 
 function assertStep(step) {
@@ -60,10 +61,12 @@ export function getRunnableSteps(graph) {
   const byId = new Map(graph.steps.map(step => [step.id, step]));
   return graph.steps.filter(step => {
     if (step.state !== 'queued' && step.state !== 'retrying') return false;
-    return step.dependsOn.every(id => TERMINAL_STATES.has(byId.get(id).state));
+    return step.dependsOn.every(id => DEPENDENCY_SUCCESS_STATES.has(byId.get(id).state));
   }).slice(0, graph.maxParallel);
 }
 
 export function isMissionComplete(graph) {
   return graph.steps.every(step => step.state === 'completed' || step.state === 'verified');
 }
+
+export { TERMINAL_STATES, DEPENDENCY_SUCCESS_STATES, VALID_STATES };

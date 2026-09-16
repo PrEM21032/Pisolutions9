@@ -1,7 +1,7 @@
 import { planNoGpt, executeNoGptPlan } from './no-gpt-engine.mjs';
 
 const cases = [
-  ['What is photosynthesis?', 'information', 'information'],
+  ['Give me a factual summary of photosynthesis.', 'information', 'information'],
   ['Should I start this business with a $10000 budget?', 'decision_support', 'decision-support'],
   ['Build a landing page for my business.', 'creation', 'creation'],
   ['My app keeps failing after deployment. Fix it.', 'troubleshooting', 'troubleshooting'],

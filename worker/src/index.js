@@ -1,3 +1,5 @@
+import { deterministicFallback } from './deterministic-fallback.mjs';
+
 const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 500;
@@ -71,6 +73,13 @@ function extractAnswer(body) {
   return body?.output_text?.trim() || body?.output?.flatMap(item => item?.content || []).find(part => part?.type === 'output_text')?.text?.trim();
 }
 
+function recoveryResponse(message, request, failure) {
+  const answer = deterministicFallback(message);
+  if (!answer) return null;
+  const headers = failure?.response && failure.failure.error === 'chat_provider_rate_limited' ? rateLimitHeaders(failure.response) : {};
+  return json({ ok: true, answer, source: 'pi-chat-deterministic-recovery', truth: 'deterministic', providerFailure: failure?.failure?.error || 'chat_provider_unavailable' }, 200, request, headers);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -89,7 +98,11 @@ export default {
     const providers = [];
     if (env.OPENAI_API_KEY) providers.push({ name: 'openai', apiKey: env.OPENAI_API_KEY, model: env.PI_CHAT_MODEL || 'gpt-5.6-luna', baseUrl: 'https://api.openai.com/v1' });
     if (env.PI_FALLBACK_API_KEY && env.PI_FALLBACK_API_URL && env.PI_FALLBACK_MODEL) providers.push({ name: 'fallback', apiKey: env.PI_FALLBACK_API_KEY, model: env.PI_FALLBACK_MODEL, baseUrl: env.PI_FALLBACK_API_URL });
-    if (!providers.length) return json({ ok: false, error: 'chat_provider_not_configured' }, 503, request);
+
+    if (!providers.length) {
+      const recovered = recoveryResponse(message, request, { failure: { error: 'chat_provider_not_configured', status: 503 } });
+      return recovered || json({ ok: false, error: 'chat_provider_not_configured' }, 503, request);
+    }
 
     let lastFailure = null;
     for (const provider of providers) {
@@ -98,7 +111,8 @@ export default {
         if (!response.ok) {
           lastFailure = { response, failure: providerError(response), provider: provider.name };
           if (response.status === 429 || response.status >= 500) continue;
-          return json({ ok: false, error: lastFailure.failure.error }, lastFailure.failure.status, request);
+          const recovered = recoveryResponse(message, request, lastFailure);
+          return recovered || json({ ok: false, error: lastFailure.failure.error }, lastFailure.failure.status, request);
         }
         const body = await response.json();
         const answer = extractAnswer(body);
@@ -111,6 +125,9 @@ export default {
         lastFailure = { failure: { error: 'chat_provider_network_error', status: 503 }, provider: provider.name };
       }
     }
+
+    const recovered = recoveryResponse(message, request, lastFailure);
+    if (recovered) return recovered;
 
     const failure = lastFailure?.failure || { error: 'chat_provider_unavailable', status: 503 };
     const headers = lastFailure?.response && failure.error === 'chat_provider_rate_limited' ? rateLimitHeaders(lastFailure.response) : {};

@@ -3,7 +3,7 @@
 // This layer intentionally reports probabilistic language signals, not claims about a person's inner state.
 
 const INTENT_PATTERNS = [
-  ['information', /\b(what|when|where|who|how many|how much|tell me|explain)\b/i],
+  ['information', /\b(what|when|where|who|how many|how much|tell me|explain|factual|facts?|summary|summarize|overview)\b/i],
   ['decision_support', /\b(should i|which|compare|worth it|best for me|recommend|choose)\b/i],
   ['troubleshooting', /\b(error|broken|not working|fails?|fix|issue|problem|why (is|does|did))\b/i],
   ['research', /\b(research|find|look up|investigate|analy[sz]e|sources?|evidence)\b/i],

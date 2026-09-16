@@ -12,7 +12,6 @@ export async function executeV2Graph(graph, {
 
   let current = structuredClone(graph);
   const results = [];
-  const completedIds = new Set();
 
   while (true) {
     const runnable = getRunnableSteps(current);
@@ -41,17 +40,14 @@ export async function executeV2Graph(graph, {
         return item ? { ...step, state: 'verified', result: item.result } : step;
       })
     };
-    for (const item of batch) {
-      completedIds.add(item.step.id);
-      results.push(item);
-    }
+    results.push(...batch);
   }
 
   const unresolved = current.steps.filter(step => !['verified', 'completed'].includes(step.state));
   return {
     graph: current,
     results,
-    completed: [...completedIds],
+    completed: results.map(({ step }) => ({ stepId: step.id, specialist: step.specialist, verified: true })),
     status: unresolved.length === 0 ? 'completed' : 'blocked',
     unresolved: unresolved.map(step => step.id)
   };

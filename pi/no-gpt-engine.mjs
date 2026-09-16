@@ -1,50 +1,118 @@
-// Human Understanding Layer (V1)
-// Purpose: understand the human's expressed objective before selecting models/tools.
-// This layer intentionally reports probabilistic language signals, not claims about a person's inner state.
+import { understandHumanInput } from './human-understanding.mjs';
 
-const INTENT_PATTERNS = [
-  ['information', /\b(what|when|where|who|how many|how much|tell me|explain)\b/i],
-  ['decision_support', /\b(should i|which|compare|worth it|best for me|recommend|choose)\b/i],
-  ['creation', /\b(build|create|make|write|design|generate|draft)\b/i],
-  ['troubleshooting', /\b(error|broken|not working|fails?|fix|issue|problem|why (is|does|did))\b/i],
-  ['research', /\b(research|find|look up|investigate|analy[sz]e|sources?|evidence)\b/i],
-  ['planning', /\b(plan|planning|roadmap|steps|schedule|strategy)\b/i],
-];
+const DOMAIN_RULES = Object.freeze([
+  { name: 'business', pattern: /business|market|sales|customer|revenue|export|import|price|profit|investment/i, tasks: ['define_business_goal', 'identify_constraints', 'build_decision_matrix'] },
+  { name: 'earth', pattern: /earth|satellite|land|crop|agriculture|map|geospatial|location|farm/i, tasks: ['define_area_of_interest', 'identify_data_sources', 'build_evidence_checklist'] },
+  { name: 'engineering', pattern: /build|code|deploy|software|app|github|netlify|feature|fix|test|api/i, tasks: ['inspect_system', 'change_code', 'run_tests', 'verify_change'] },
+  { name: 'research', pattern: /research|compare|find|learn|analyze|study|investigate/i, tasks: ['decompose_question', 'collect_available_evidence', 'compare_findings'] }
+]);
 
-const SIGNAL_PATTERNS = [
-  ['frustration', /\b(frustrated|annoyed|angry|sick of|tired of|keeps failing|wtf|damn)\b/i],
-  ['uncertainty', /\b(i don't know|not sure|confused|uncertain|maybe|probably|what do i do)\b/i],
-  ['urgency', /\b(urgent|asap|right now|immediately|today|deadline|emergency)\b/i],
-  ['positive_engagement', /\b(excited|love|great|awesome|thank you|thanks|let's go)\b/i],
-];
+const CONVERSATIONAL_RULES = Object.freeze([
+  { intent: 'greeting', pattern: /^(hi|hello|hey|good morning|good afternoon|good evening|namaste)\b[!. ]*$/i },
+  { intent: 'math', pattern: /^(what is|calculate|solve)\s+[-+*/(). 0-9]+\??$/i },
+  { intent: 'weather', pattern: /\b(weather|forecast|temperature|rain|snow|wind|humidity)\b/i },
+  { intent: 'time', pattern: /\b(what time|current time|time is it)\b/i },
+  { intent: 'conversion', pattern: /\b(convert|conversion)\b/i },
+  { intent: 'explanation', pattern: /^(what is|what are|who is|why is|how does|explain|define)\b/i }
+]);
 
-export function understandHumanInput(input = '') {
-  const text = String(input).trim();
-  const intents = INTENT_PATTERNS.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
-  const signals = SIGNAL_PATTERNS.filter(([, pattern]) => pattern.test(text)).map(([name]) => ({
-    type: name,
-    confidence: 'moderate',
-    basis: 'language_signal',
-  }));
+const INTENT_TASKS = Object.freeze({
+  information: ['define_information_need', 'identify_required_evidence', 'verify_answer'],
+  'decision-support': ['define_decision', 'identify_options_and_constraints', 'compare_tradeoffs', 'verify_evidence'],
+  creation: ['define_deliverable', 'identify_requirements', 'produce_draft_or_build', 'verify_deliverable'],
+  troubleshooting: ['reproduce_problem', 'classify_failure', 'identify_root_cause', 'apply_fix_or_alternative', 'regression_test'],
+  research: ['decompose_research_question', 'collect_evidence', 'cross_check_findings', 'synthesize_verified_findings'],
+  planning: ['define_target_outcome', 'sequence_dependencies', 'identify_risks_and_constraints', 'verify_plan'],
+  general: ['define_objective', 'identify_constraints', 'verify_available_evidence']
+});
 
-  const hasExplicitObjective = /\b(i want|i need|my goal|help me|i'm trying to|we need to)\b/i.test(text);
-  const needsClarification = text.length < 8 || (!hasExplicitObjective && intents.length === 0);
-
-  return {
-    text,
-    intents: intents.length ? intents : ['general'],
-    explicitObjective: hasExplicitObjective,
-    needsClarification,
-    emotionalSignals: signals,
-    constraints: extractConstraints(text),
-  };
+function classifyConversational(text) {
+  const troubleshootingSignal = /\b(api|error|bug|failure|failing|broken|crash|issue|problem|not working|fix|debug)\b/i.test(text);
+  const troubleshootingQuestion = /\b(why|how|fix|solve|debug)\b/i.test(text);
+  if (troubleshootingSignal && troubleshootingQuestion) return 'troubleshooting';
+  return CONVERSATIONAL_RULES.find(rule => rule.pattern.test(text))?.intent || null;
 }
 
-function extractConstraints(text) {
-  const constraints = [];
-  const budget = text.match(/(?:under|below|less than|max(?:imum)?|budget(?: of)?)\s*[$€£]?\s*([\d,]+(?:\.\d+)?)/i);
-  if (budget) constraints.push({ type: 'budget', value: budget[1] });
-  if (/\b(cheap|low cost|low-cost|free)\b/i.test(text)) constraints.push({ type: 'cost_preference', value: 'low' });
-  if (/\b(fast|quick|asap|today|immediately)\b/i.test(text)) constraints.push({ type: 'time_preference', value: 'fast' });
-  return constraints;
+function mathAnswer(text) {
+  const expression = text.replace(/^(what is|calculate|solve)\s+/i, '').replace(/[?=]+$/g, '').trim();
+  if (!/^[0-9+*/().\s-]+$/.test(expression) || !/[0-9]/.test(expression)) return null;
+  try {
+    const value = Function(`\"use strict\"; return (${expression})`)();
+    if (!Number.isFinite(value)) return null;
+    return `${expression} = ${value}`;
+  } catch { return null; }
+}
+
+function customerResponse(intent, text) {
+  switch (intent) {
+    case 'greeting': return { title: 'Hello', message: 'Hi — Krishna is ready. Give me a question or objective and I’ll route it to the right path.', dataRequired: null };
+    case 'math': return { title: 'Answer', message: mathAnswer(text) || 'I can calculate that, but I need a valid arithmetic expression.', dataRequired: null };
+    case 'weather': return { title: 'Weather', message: 'I recognized this as a weather request. Current weather must come from a live weather data source; PI will not invent conditions.', dataRequired: 'current weather data and location' };
+    case 'time': return { title: 'Time', message: 'This is a current-time request. PI should use a live clock for the requested location rather than route it through a business mission.', dataRequired: 'current clock and timezone' };
+    case 'conversion': return { title: 'Conversion', message: 'This is a unit-conversion request. PI should calculate the conversion directly instead of creating a multi-agent mission.', dataRequired: 'source unit, target unit and value' };
+    case 'explanation': return { title: 'Explanation', message: 'This is an informational question. PI should answer it directly when the required knowledge is available, and use research/verification only when needed.', dataRequired: null };
+    case 'troubleshooting': return { title: 'Troubleshooting', message: 'This is a troubleshooting request. PI should reproduce or isolate the failure, identify the root cause, apply a safe fix or fallback, and regression-test the result.', dataRequired: null };
+    default: return null;
+  }
+}
+
+function primaryHumanIntent(humanUnderstanding) {
+  return humanUnderstanding.intents.find(intent => intent !== 'general') || 'general';
+}
+
+function humanRoute(intent) {
+  switch (intent) {
+    case 'information': return 'information';
+    case 'decision_support': return 'decision-support';
+    case 'creation': return 'creation';
+    case 'troubleshooting': return 'troubleshooting';
+    case 'research': return 'research';
+    case 'planning': return 'planning';
+    default: return 'general';
+  }
+}
+
+export function planNoGpt(objective = '') {
+  const text = String(objective).trim();
+  if (!text) throw new Error('objective_required');
+
+  const humanUnderstanding = understandHumanInput(text);
+  const conversationalIntent = classifyConversational(text);
+  if (conversationalIntent) {
+    return Object.freeze({ mode: 'no-gpt', objective: text, route: 'conversation', intent: conversationalIntent, domains: [conversationalIntent], tasks: ['understand_request', 'respond_or_request_required_data'], planner: 'deterministic-intent-router', customerIntent: conversationalIntent, humanUnderstanding });
+  }
+
+  const humanIntent = primaryHumanIntent(humanUnderstanding);
+  const matched = DOMAIN_RULES.filter(rule => rule.pattern.test(text));
+  const domains = matched.length ? matched.map(rule => rule.name) : ['general'];
+  const domainTasks = matched.flatMap(rule => rule.tasks);
+  const intentTasks = INTENT_TASKS[humanRoute(humanIntent)] || INTENT_TASKS.general;
+  const tasks = [...new Set([...intentTasks, ...domainTasks])];
+
+  if (humanUnderstanding.needsClarification) {
+    return Object.freeze({ mode: 'no-gpt', objective: text, route: 'clarification', intent: humanIntent, domains, tasks: ['clarify_objective', 'identify_constraints'], planner: 'human-first-router', customerIntent: null, humanUnderstanding });
+  }
+
+  return Object.freeze({ mode: 'no-gpt', objective: text, route: humanRoute(humanIntent), intent: humanIntent, domains, tasks, planner: 'human-first-router', customerIntent: null, humanUnderstanding });
+}
+
+export function executeNoGptPlan(plan) {
+  if (!plan || plan.mode !== 'no-gpt') throw new Error('no_gpt_plan_required');
+  const response = plan.route === 'conversation'
+    ? customerResponse(plan.intent, plan.objective)
+    : plan.route === 'clarification'
+      ? { title: 'Clarification needed', message: 'I understand that you need help, but I need a little more detail about the objective before choosing the work path.', dataRequired: 'clear objective or desired outcome' }
+      : null;
+  return {
+    completed: [{ verified: true, task: 'deterministic_route_generated', order: 1 }],
+    planned: plan.tasks.map((task, index) => ({ task, order: index + 1 })),
+    evidence: [
+      { source: 'pi-no-gpt-engine', claim: 'deterministic human-first route generated; no external action executed' },
+      { source: 'pi-no-gpt-engine', claim: JSON.stringify({ route: plan.route, intent: plan.intent || null, domains: plan.domains, tasks: plan.tasks }) }
+    ],
+    status: 'completed',
+    nextAction: plan.tasks[0] || null,
+    customerResponse: response,
+    uncertainty: ['No-GPT mode does not invent current external facts. Live data requests require a verified data source.']
+  };
 }

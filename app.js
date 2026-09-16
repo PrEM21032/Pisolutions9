@@ -60,7 +60,7 @@ function localResponse(text, intent) {
   if (intent === 'greeting') return { title: 'Hello', message: 'Hi — Krishna is ready. Give me a question or objective and I’ll route it to the right path.' };
   if (intent === 'math') return { title: 'Answer', message: localMath(text) || 'I can calculate that, but I need a valid arithmetic expression.' };
   if (intent === 'weather') return { title: 'Weather request', message: 'I recognized this as weather. Current conditions require a live weather source, so PI will not invent them.' };
-  if (intent === 'time') return { title: 'Time request', message: 'I recognized this as a current-time request. PI should use a live clock for the requested location.' };
+  if (intent === 'time') return { title: 'Time request', message: 'I recognized this as a current-time request. Current time requires a live clock for the requested location.' };
   if (intent === 'conversion') return { title: 'Conversion request', message: 'I recognized this as a unit-conversion request and will use a direct calculation path.' };
   if (intent === 'explanation') return { title: 'Information request', message: 'I recognized this as an informational question and will answer directly when the required knowledge is available.' };
   return null;
@@ -78,8 +78,8 @@ function planLocal(text) {
 
 function showCustomerResponse(text, response, plan, source) {
   missionTitle.textContent = response.title;
-  steps.innerHTML = `<div class="step"><i>01</i><div><strong>${response.message}</strong><small>${plan.intent}${response.title === 'Weather request' ? ' · live data required' : ''}</small></div></div>`;
-  confidence.textContent = `${source} · ${plan.intent}`;
+  steps.innerHTML = `<div class="step"><i>01</i><div><strong>${response.message}</strong><small>${plan.intent || 'conversation'}</small></div></div>`;
+  confidence.textContent = `${source} · ${plan.intent || 'conversation'}`;
   mission.classList.remove('hidden');
   mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -103,9 +103,28 @@ function runLocalMission(text, note = 'Local zero-cost mode') {
   systemStatus.textContent = 'Local PI ready';
 }
 
+async function runCustomerChat(text) {
+  run.disabled = true;
+  systemStatus.textContent = 'Krishna thinking…';
+  try {
+    const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text }) });
+    const body = await response.json();
+    if (!response.ok || !body.answer) throw new Error(body.error || 'chat_unavailable');
+    showCustomerResponse(text, { title: 'PI', message: body.answer }, { intent: 'direct-answer' }, 'PI conversational model');
+    systemStatus.textContent = 'PI ready';
+    return true;
+  } catch {
+    runLocalMission(text, 'Local fallback');
+    return false;
+  } finally { run.disabled = false; }
+}
+
 async function runCloudMission(text) {
   const token = ownerToken.value.trim();
-  if (!token) { runLocalMission(text); return; }
+  if (!token) {
+    await runCustomerChat(text);
+    return;
+  }
   run.disabled = true;
   systemStatus.textContent = 'Krishna running…';
   try {

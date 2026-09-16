@@ -11,6 +11,7 @@ import { createExecutionPolicy } from './policy.mjs';
 import { classifyBlocker, createAlternativePlan, runAlternativePlan } from './blocker-router.mjs';
 import { createNetra } from './netra.mjs';
 import { verifyLearningAction } from './learning-prevention.mjs';
+import { createV2MissionGraph } from './v2-mission-plan.mjs';
 
 const defaultState = createStateAdapter({
   save: saveMission,
@@ -30,11 +31,13 @@ export function createRuntime({
   state = defaultState,
   policy = createExecutionPolicy(),
   netra = createNetra(),
-  learn = null
+  learn = null,
+  v2MaxParallel = 2
 } = {}) {
   if (!state || typeof state.save !== 'function' || typeof state.load !== 'function') throw new Error('invalid_state_adapter');
   if (!netra || typeof netra.inspect !== 'function') throw new Error('invalid_netra');
   if (learn !== null && typeof learn !== 'function') throw new Error('invalid_learning_hook');
+  if (!Number.isInteger(v2MaxParallel) || v2MaxParallel < 1) throw new Error('invalid_v2_max_parallel');
   const queue = createQueue();
   const guard = createCostGuard(cost);
 
@@ -51,10 +54,11 @@ export function createRuntime({
     const delegation = createDelegationPlan(mission);
     const delegationCheck = validateDelegation(delegation);
     if (!delegationCheck.ok) throw new Error('delegation_validation_failed');
-    const enriched = { ...mission, delegation };
+    const missionGraph = createV2MissionGraph(mission, { maxParallel: v2MaxParallel });
+    const enriched = { ...mission, delegation, missionGraph };
     await state.save(enriched);
     queue.enqueue(enriched);
-    observer.emit({ missionId: mission.id, step: 'submit', status: 'planned', truth: 'verified', message: 'mission_queued' });
+    observer.emit({ missionId: mission.id, step: 'submit', status: 'planned', truth: 'verified', message: 'mission_queued', missionGraph: { maxParallel: missionGraph.maxParallel, stepCount: missionGraph.steps.length } });
     return enriched;
   }
 

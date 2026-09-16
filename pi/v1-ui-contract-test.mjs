@@ -12,11 +12,14 @@ assert.match(app, /answer\.textContent\s*=\s*response\.message/);
 assert.match(app, /meta\.textContent\s*=\s*source/);
 assert.match(app, /finally\s*\{\s*run\.disabled\s*=\s*false/s);
 assert.match(app, /response\.ok/);
-assert.match(app, /chat_provider_rate_limited/);
+assert.match(app, /body\.error/);
 
-// Customer-visible AI output must use textContent, never HTML interpolation.
+// Customer-visible output and mission/task rendering must use text nodes, not HTML interpolation.
 assert.match(app, /answer\.textContent\s*=\s*response\.message/);
-assert.doesNotMatch(app, /answer\.innerHTML\s*=\s*response\.message/);
+assert.match(app, /title\.textContent\s*=\s*label/);
+assert.match(app, /description\.textContent\s*=\s*detail/);
+assert.doesNotMatch(app, /steps\.innerHTML\s*=/);
+assert.doesNotMatch(app, /answer\.innerHTML\s*=/);
 
 // Internal orchestration/debug scaffolding must not be customer copy.
 for (const phrase of [

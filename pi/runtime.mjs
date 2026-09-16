@@ -9,6 +9,7 @@ import { createDeadLetterStore } from './dead-letter.mjs';
 import { createDelegationPlan, validateDelegation } from './delegation.mjs';
 import { createExecutionPolicy } from './policy.mjs';
 import { classifyBlocker, createAlternativePlan, runAlternativePlan } from './blocker-router.mjs';
+import { createNetra } from './netra.mjs';
 
 const defaultState = createStateAdapter({
   save: saveMission,
@@ -26,13 +27,18 @@ export function createRuntime({
   cost = {},
   deadLetters = createDeadLetterStore(),
   state = defaultState,
-  policy = createExecutionPolicy()
+  policy = createExecutionPolicy(),
+  netra = createNetra()
 } = {}) {
   if (!state || typeof state.save !== 'function' || typeof state.load !== 'function') throw new Error('invalid_state_adapter');
+  if (!netra || typeof netra.inspect !== 'function') throw new Error('invalid_netra');
   const queue = createQueue();
   const guard = createCostGuard(cost);
 
   async function submit(objective, context = {}) {
+    const preCheck = netra.inspect(objective, 'pre');
+    observer.emit({ missionId: null, step: 'netra_precheck', status: preCheck.allowed ? 'allowed' : 'blocked', truth: 'verified', message: preCheck.severity, findings: preCheck.findings });
+    if (!preCheck.allowed) throw new Error(`netra_precheck_blocked:${preCheck.severity}`);
     const key = context?.idempotencyKey;
     if (key) {
       const existing = await state.findByIdempotencyKey(key);
@@ -83,6 +89,9 @@ export function createRuntime({
       if (!gate.ok) throw new Error('verification_failed');
       if (result.status === 'completed' && (!Array.isArray(result.evidence) || result.evidence.length === 0)) throw new Error('evidence_required_for_completed');
       const checked = verify ? await verify(result, mission) : result;
+      const finalCheck = netra.inspect({ outcome: checked?.status, evidence: checked?.evidence }, 'final');
+      observer.emit({ missionId: mission.id, step: 'netra_finalcheck', status: finalCheck.allowed ? 'allowed' : 'blocked', truth: 'verified', message: finalCheck.severity, findings: finalCheck.findings });
+      if (!finalCheck.allowed) throw new Error(`netra_finalcheck_blocked:${finalCheck.severity}`);
       const outcome = safeOutcome(mission, checked);
       mission = await state.save({ ...mission, status: outcome.status, result: outcome });
       observer.emit({ missionId: mission.id, step: 'verify', status: outcome.status, truth: outcome.truth?.verified?.length ? 'verified' : 'probable', durationMs: Date.now() - started, message: 'cycle_verified' });
@@ -127,5 +136,5 @@ export function createRuntime({
     };
   }
 
-  return { submit, cycle, runCycles, queue, cost: guard, deadLetters, policy, state };
+  return { submit, cycle, runCycles, queue, cost: guard, deadLetters, policy, state, netra };
 }

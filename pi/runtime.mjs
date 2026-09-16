@@ -10,6 +10,7 @@ import { createDelegationPlan, validateDelegation } from './delegation.mjs';
 import { createExecutionPolicy } from './policy.mjs';
 import { classifyBlocker, createAlternativePlan, runAlternativePlan } from './blocker-router.mjs';
 import { createNetra } from './netra.mjs';
+import { verifyLearningAction } from './learning-prevention.mjs';
 
 const defaultState = createStateAdapter({
   save: saveMission,
@@ -28,10 +29,12 @@ export function createRuntime({
   deadLetters = createDeadLetterStore(),
   state = defaultState,
   policy = createExecutionPolicy(),
-  netra = createNetra()
+  netra = createNetra(),
+  learn = null
 } = {}) {
   if (!state || typeof state.save !== 'function' || typeof state.load !== 'function') throw new Error('invalid_state_adapter');
   if (!netra || typeof netra.inspect !== 'function') throw new Error('invalid_netra');
+  if (learn !== null && typeof learn !== 'function') throw new Error('invalid_learning_hook');
   const queue = createQueue();
   const guard = createCostGuard(cost);
 
@@ -75,6 +78,16 @@ export function createRuntime({
     }
   }
 
+  async function recordLearning(mission, error) {
+    if (!learn) return null;
+    const evidence = [{ source: 'runtime-error', claim: String(error?.message || error) }];
+    const action = await learn({ mission, error, evidence });
+    const check = verifyLearningAction(action);
+    observer.emit({ missionId: mission.id, step: 'learning_prevention', status: check.verified ? 'verified' : 'rejected', truth: check.verified ? 'verified' : 'unknown', message: check.reason });
+    if (!check.verified) throw new Error(`learning_prevention_rejected:${check.reason}`);
+    return action;
+  }
+
   async function cycle() {
     const queued = queue.next();
     if (!queued) return { status: 'idle' };
@@ -97,8 +110,10 @@ export function createRuntime({
       observer.emit({ missionId: mission.id, step: 'verify', status: outcome.status, truth: outcome.truth?.verified?.length ? 'verified' : 'probable', durationMs: Date.now() - started, message: 'cycle_verified' });
       return outcome;
     } catch (error) {
+      let learningError = null;
+      try { await recordLearning(mission, error); } catch (learnError) { learningError = learnError; }
       const blocker = classifyBlocker(error);
-      const humanGate = !blocker.safeToReroute;
+      const humanGate = !blocker.safeToReroute || Boolean(learningError);
       mission = humanGate
         ? await state.save({ ...mission, status: 'blocked' })
         : markFailure(mission, error);
@@ -115,7 +130,7 @@ export function createRuntime({
       });
       return safeOutcome(mission, {
         status: mission.status,
-        uncertainty: [String(error?.message || error)],
+        uncertainty: [String(error?.message || error), ...(learningError ? [String(learningError?.message || learningError)] : [])],
         nextAction
       });
     }

@@ -4,9 +4,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: read
+
+concurrency:
+  group: pi-runtime-test
+  cancel-in-progress: false
 
 env:
   PI_PUBLIC_URL: https://pisolutions9.github.io/Pisolutions9
@@ -15,6 +21,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

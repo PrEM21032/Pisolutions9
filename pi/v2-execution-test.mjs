@@ -33,6 +33,8 @@ const output = await executeV2Graph(graph, {
 assert.equal(output.status, 'completed');
 assert.equal(output.unresolved.length, 0);
 assert.equal(output.results.length, 4);
+assert.equal(output.completed.length, 4);
+assert.ok(output.completed.every(item => item.verified === true));
 assert.ok(peak <= 2);
 assert.deepEqual(output.graph.steps.map(step => step.state), ['verified', 'verified', 'verified', 'verified']);
 assert.equal(output.graph.steps.at(-1).result.truthLevel, 'verified');

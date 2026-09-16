@@ -51,7 +51,7 @@ function localMath(text) {
   const expression = text.replace(/^(what is|calculate|solve)\s+/i, '').replace(/[?=]+$/g, '').trim();
   if (!/^[0-9+*/().\s-]+$/.test(expression) || !/[0-9]/.test(expression)) return null;
   try {
-    const value = Function(`"use strict"; return (${expression})`)();
+    const value = Function(`\"use strict\"; return (${expression})`)();
     return Number.isFinite(value) ? `${expression} = ${value}` : null;
   } catch { return null; }
 }
@@ -78,7 +78,7 @@ function planLocal(text) {
 
 function showCustomerResponse(text, response, plan, source) {
   missionTitle.textContent = response.title;
-  steps.innerHTML = `<div class="step"><i>01</i><div><strong>${response.message}</strong><small>${plan.intent || 'conversation'}</small></div></div>`;
+  steps.innerHTML = `<div class=\"step\"><i>01</i><div><strong>${response.message}</strong><small>${plan.intent || 'conversation'}</small></div></div>`;
   confidence.textContent = `${source} · ${plan.intent || 'conversation'}`;
   mission.classList.remove('hidden');
   mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -88,7 +88,7 @@ function showMission(text, plan, status, source) {
   missionTitle.textContent = text;
   steps.innerHTML = plan.tasks.map((task, i) => {
     const [label, detail] = TASK_LABELS[task] || [task.replaceAll('_', ' '), 'Planned step.'];
-    return `<div class="step"><i>${String(i + 1).padStart(2, '0')}</i><div><strong>${label}</strong><small>${detail}</small></div></div>`;
+    return `<div class=\"step\"><i>${String(i + 1).padStart(2, '0')}</i><div><strong>${label}</strong><small>${detail}</small></div></div>`;
   }).join('');
   confidence.textContent = `${status} · ${source} · ${plan.domains.join(' · ')}`;
   mission.classList.remove('hidden');
@@ -103,11 +103,17 @@ function runLocalMission(text, note = 'Local zero-cost mode') {
   systemStatus.textContent = 'Local PI ready';
 }
 
+function chatApiUrl() {
+  const configuredBase = window.PI_CHAT_API_BASE || document.documentElement.dataset.piChatApiBase || '';
+  const base = configuredBase.replace(/\/$/, '');
+  return `${base}/api/chat`;
+}
+
 async function runCustomerChat(text) {
   run.disabled = true;
   systemStatus.textContent = 'Krishna thinking…';
   try {
-    const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text }) });
+    const response = await fetch(chatApiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text }) });
     const body = await response.json();
     if (!response.ok || !body.answer) throw new Error(body.error || 'chat_unavailable');
     showCustomerResponse(text, { title: 'PI', message: body.answer }, { intent: 'direct-answer' }, 'PI conversational model');

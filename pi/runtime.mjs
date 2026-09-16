@@ -122,6 +122,9 @@ export function createRuntime({
       mission = await state.save({ ...mission, status: 'running' });
       guard.action();
       const result = await executeMission(mission);
+      if (result.v2Graph) {
+        mission = await state.save({ ...mission, missionGraph: result.v2Graph });
+      }
       const gate = verifyOutcome(result);
       if (!gate.ok) throw new Error('verification_failed');
       if (result.status === 'completed' && (!Array.isArray(result.evidence) || result.evidence.length === 0)) throw new Error('evidence_required_for_completed');

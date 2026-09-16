@@ -1,5 +1,7 @@
 const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
+const MAX_OUTPUT_TOKENS = 500;
+const MAX_RATE_LIMIT_RETRIES = 2;
 
 function corsHeaders(origin) {
   return {
@@ -13,9 +15,12 @@ function corsHeaders(origin) {
   };
 }
 
-function json(body, status, request) {
+function json(body, status, request, extraHeaders = {}) {
   const origin = request.headers.get('Origin') || '';
-  return new Response(JSON.stringify(body), { status, headers: corsHeaders(origin) });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders(origin), ...extraHeaders }
+  });
 }
 
 function providerError(response) {
@@ -26,6 +31,47 @@ function providerError(response) {
   if (response.status >= 500) return { error: 'chat_provider_server_error', status: 503 };
   if (response.status >= 400) return { error: 'chat_provider_request_rejected', status: 502 };
   return { error: 'chat_provider_unavailable', status: 503 };
+}
+
+function retryDelayMs(response, attempt) {
+  const retryAfter = Number(response.headers.get('retry-after'));
+  if (Number.isFinite(retryAfter) && retryAfter >= 0 && retryAfter <= 2) return retryAfter * 1000;
+  return 250 * (2 ** attempt);
+}
+
+function rateLimitHeaders(response) {
+  const headers = {};
+  for (const name of ['x-ratelimit-limit-requests', 'x-ratelimit-remaining-requests', 'x-ratelimit-reset-requests']) {
+    const value = response.headers.get(name);
+    if (value) headers[name] = value;
+  }
+  return headers;
+}
+
+async function callOpenAI(env, message) {
+  const model = env.PI_CHAT_MODEL || 'gpt-5.6-luna';
+  let lastResponse;
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        store: false,
+        max_output_tokens: MAX_OUTPUT_TOKENS,
+        instructions: "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not repeat generic templates or expose internal routing, classification, planning, tool, or verification language. If current external facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was. For multi-step objectives, separate planned work from completed work.",
+        input: message
+      })
+    });
+    if (response.ok || response.status !== 429 || attempt === MAX_RATE_LIMIT_RETRIES) return response;
+    lastResponse = response;
+    const delay = retryDelayMs(response, attempt);
+    if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  return lastResponse;
 }
 
 export default {
@@ -45,20 +91,11 @@ export default {
     if (!env.OPENAI_API_KEY) return json({ ok: false, error: 'chat_provider_not_configured' }, 503, request);
 
     try {
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model: env.PI_CHAT_MODEL || 'gpt-5.6-luna',
-          store: false,
-          max_output_tokens: 900,
-          instructions: "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not repeat generic templates or expose internal routing, classification, planning, tool, or verification language. If current external facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was. For multi-step objectives, separate planned work from completed work.",
-          input: message
-        })
-      });
+      const response = await callOpenAI(env, message);
       if (!response.ok) {
         const failure = providerError(response);
-        return json({ ok: false, error: failure.error }, failure.status, request);
+        const headers = failure.error === 'chat_provider_rate_limited' ? rateLimitHeaders(response) : {};
+        return json({ ok: false, error: failure.error }, failure.status, request, headers);
       }
       const body = await response.json();
       const answer = body?.output_text?.trim() || body?.output?.flatMap(item => item?.content || []).find(part => part?.type === 'output_text')?.text?.trim();

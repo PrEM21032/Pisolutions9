@@ -12,6 +12,7 @@ import { classifyBlocker, createAlternativePlan, runAlternativePlan } from './bl
 import { createNetra } from './netra.mjs';
 import { verifyLearningAction } from './learning-prevention.mjs';
 import { createV2MissionGraph } from './v2-mission-plan.mjs';
+import { executeV2Graph } from './v2-execution.mjs';
 
 const defaultState = createStateAdapter({
   save: saveMission,
@@ -23,6 +24,8 @@ const defaultState = createStateAdapter({
 
 export function createRuntime({
   execute = async () => ({ completed: [], evidence: [], status: 'blocked' }),
+  executeSpecialist = null,
+  verifySpecialist = null,
   alternatives = [],
   verify = null,
   observer = createObserver(),
@@ -37,6 +40,8 @@ export function createRuntime({
   if (!state || typeof state.save !== 'function' || typeof state.load !== 'function') throw new Error('invalid_state_adapter');
   if (!netra || typeof netra.inspect !== 'function') throw new Error('invalid_netra');
   if (learn !== null && typeof learn !== 'function') throw new Error('invalid_learning_hook');
+  if (executeSpecialist !== null && typeof executeSpecialist !== 'function') throw new Error('invalid_v2_specialist_executor');
+  if (verifySpecialist !== null && typeof verifySpecialist !== 'function') throw new Error('invalid_v2_verifier');
   if (!Number.isInteger(v2MaxParallel) || v2MaxParallel < 1) throw new Error('invalid_v2_max_parallel');
   const queue = createQueue();
   const guard = createCostGuard(cost);
@@ -64,6 +69,21 @@ export function createRuntime({
 
   async function executeMission(mission) {
     try {
+      if (executeSpecialist) {
+        const v2 = await executeV2Graph(mission.missionGraph, {
+          executeSpecialist,
+          verifySpecialist: verifySpecialist || undefined,
+          context: mission.context,
+          constraints: mission.context?.constraints || {}
+        });
+        return {
+          status: v2.status,
+          completed: v2.completed,
+          evidence: v2.results.flatMap(item => item.result.evidence),
+          v2Graph: v2.graph,
+          specialistResults: v2.results.map(item => ({ specialist: item.step.specialist, result: item.result }))
+        };
+      }
       return await execute(mission, { cost: guard, policy });
     } catch (error) {
       const plan = createAlternativePlan({ blocker: error, alternatives });

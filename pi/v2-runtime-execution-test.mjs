@@ -25,10 +25,13 @@ const runtime = createRuntime({
 
 const mission = await runtime.submit('Build a market research system', { idempotencyKey: 'v2-runtime-execution' });
 const outcome = await runtime.cycle();
+const persisted = await state.load(mission.id);
 
 assert.equal(outcome.status, 'completed');
 assert.equal(outcome.completed.length, 4);
 assert.ok(outcome.completed.every(item => item.verified === true));
 assert.equal(outcome.evidence.length, 4);
+assert.ok(persisted.missionGraph);
+assert.ok(persisted.missionGraph.steps.every(step => step.state === 'verified'));
 
 console.log('PI V2 runtime execution tests passed');

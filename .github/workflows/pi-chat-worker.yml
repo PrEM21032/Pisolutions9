@@ -33,6 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           endpoint='https://pi-chat.premchandyadlapati.workers.dev/api/chat'
+          answers=()
           for question in 'What is 2 plus 2?' 'Why is the sky blue?'; do
             status="$(curl --silent --show-error --location --max-time 30 --retry 3 --retry-all-errors \
               -H 'content-type: application/json' \
@@ -43,4 +44,6 @@ jobs:
             cat /tmp/pi-chat.json
             test "$status" = 200
             python -c 'import json; d=json.load(open("/tmp/pi-chat.json")); assert d.get("ok") is True and isinstance(d.get("answer"), str) and d["answer"].strip()'
+            answers+=("$(python -c 'import json; print(json.load(open("/tmp/pi-chat.json"))["answer"])')")
           done
+          test "${answers[0]}" != "${answers[1]}"

@@ -25,6 +25,9 @@ jobs:
       - name: Install current Wrangler
         working-directory: worker
         run: npm install --no-save --no-package-lock wrangler@4
+      - name: Test deterministic recovery
+        working-directory: worker
+        run: node src/deterministic-fallback-test.mjs
       - name: Deploy PI chat worker
         working-directory: worker
         env:

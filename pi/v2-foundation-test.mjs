@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createMissionGraph, getRunnableSteps, isMissionComplete } from './mission-graph.mjs';
-import { getSpecialistContract, validateSpecialistResult } from './specialist-contracts.mjs';
+import { getSpecialistContract, validateSpecialistInput, validateSpecialistResult } from './specialist-contracts.mjs';
 import { createV2MissionGraph } from './v2-mission-plan.mjs';
 
 const graph = createMissionGraph({
@@ -20,6 +20,9 @@ assert.deepEqual(getRunnableSteps(graph).map(step => step.id), ['engineering', '
 assert.equal(isMissionComplete(graph), false);
 assert.equal(getSpecialistContract('engineering').requiresKrishna, true);
 assert.equal(getSpecialistContract('engineering').canBypassOwnerGate, false);
+assert.equal(validateSpecialistInput('engineering', {
+  missionId: 'm1', objective: 'test objective', context: {}, constraints: {}
+}), true);
 assert.equal(validateSpecialistResult('engineering', {
   result: 'verified test output',
   evidence: [{ source: 'test', detail: 'deterministic fixture' }],
@@ -27,18 +30,9 @@ assert.equal(validateSpecialistResult('engineering', {
   failureClass: 'unknown'
 }), true);
 assert.throws(() => getSpecialistContract('unknown-specialist'), /unknown specialist/);
-assert.throws(() => createMissionGraph({ missionId: 'cycle', objective: 'cycle', steps: [
-  { id: 'a', dependsOn: ['b'] }, { id: 'b', dependsOn: ['a'] }
-]}), /cycle/);
-assert.throws(() => createMissionGraph({ missionId: 'dup', objective: 'dup', steps: [
-  { id: 'a', dependsOn: [] }, { id: 'a', dependsOn: [] }
-]}), /duplicate mission step/);
-assert.throws(() => createMissionGraph({ missionId: 'unknown', objective: 'unknown', steps: [
-  { id: 'a', dependsOn: ['missing'] }
-]}), /unknown dependency/);
-assert.throws(() => createMissionGraph({ missionId: 'self', objective: 'self', steps: [
-  { id: 'a', dependsOn: ['a'] }
-]}), /self dependency/);
+assert.throws(() => validateSpecialistInput('research', { missionId: 'm1', objective: 'x', context: {} }), /constraints/);
+assert.throws(() => validateSpecialistInput('research', { missionId: '', objective: 'x', context: {}, constraints: {} }), /missionId/);
+assert.throws(() => validateSpecialistResult('research', { result: 'bad', evidence: [], truthLevel: 'unknown' }), /failureClass/);
 assert.throws(() => validateSpecialistResult('research', {
   result: 'bad', evidence: [], truthLevel: 'certain', failureClass: 'unknown'
 }), /truthLevel/);
@@ -59,8 +53,7 @@ for (const terminalState of ['blocked', 'dead-lettered']) {
 }
 
 const verifiedDependency = createMissionGraph({
-  missionId: 'verified-dependency',
-  objective: 'verified work unlocks dependents',
+  missionId: 'verified-dependency', objective: 'verified work unlocks dependents',
   steps: [
     { id: 'verified', dependsOn: [], state: 'verified' },
     { id: 'downstream', dependsOn: ['verified'], state: 'queued' }
@@ -69,24 +62,30 @@ const verifiedDependency = createMissionGraph({
 assert.deepEqual(getRunnableSteps(verifiedDependency).map(step => step.id), ['downstream']);
 
 const parallelGraph = createMissionGraph({
-  missionId: 'parallel-limit',
-  objective: 'bounded parallelism',
-  maxParallel: 2,
-  steps: [
-    { id: 'a', dependsOn: [] },
-    { id: 'b', dependsOn: [] },
-    { id: 'c', dependsOn: [] }
-  ]
+  missionId: 'parallel-limit', objective: 'bounded parallelism', maxParallel: 2,
+  steps: [{ id: 'a', dependsOn: [] }, { id: 'b', dependsOn: [] }, { id: 'c', dependsOn: [] }]
 });
 assert.deepEqual(getRunnableSteps(parallelGraph).map(step => step.id), ['a', 'b']);
 
 const planned = createV2MissionGraph({
-  id: 'mission-plan-test',
-  objective: 'build a market research system',
+  id: 'mission-plan-test', objective: 'build a market research system',
   specialists: ['business', 'research', 'data', 'security']
 }, { maxParallel: 2 });
 assert.deepEqual(getRunnableSteps(planned).map(step => step.specialist), ['business', 'research']);
 assert.equal(planned.steps.at(-1).id, 'verify');
 assert.deepEqual(planned.steps.at(-1).dependsOn, planned.steps.slice(0, -1).map(step => step.id));
+
+assert.throws(() => createMissionGraph({ missionId: 'cycle', objective: 'cycle', steps: [
+  { id: 'a', dependsOn: ['b'] }, { id: 'b', dependsOn: ['a'] }
+]}), /cycle/);
+assert.throws(() => createMissionGraph({ missionId: 'dup', objective: 'dup', steps: [
+  { id: 'a', dependsOn: [] }, { id: 'a', dependsOn: [] }
+]}), /duplicate mission step/);
+assert.throws(() => createMissionGraph({ missionId: 'unknown', objective: 'unknown', steps: [
+  { id: 'a', dependsOn: ['missing'] }
+]}), /unknown dependency/);
+assert.throws(() => createMissionGraph({ missionId: 'self', objective: 'self', steps: [
+  { id: 'a', dependsOn: ['a'] }
+]}), /self dependency/);
 
 console.log('PI V2 foundation tests passed');

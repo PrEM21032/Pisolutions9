@@ -24,3 +24,7 @@ PI must optimize for correctness rather than agreement. Important outputs should
 ## Current foundation
 
 The repository currently contains a zero-backend owner-console prototype. It demonstrates the mission-planning experience while the execution layer is developed.
+
+## Release gate
+
+V1 is not considered released until the published owner console, runtime endpoint, automated verification, and end-to-end mission flow have each been directly tested and evidenced.

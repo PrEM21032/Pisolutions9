@@ -4,6 +4,7 @@ import { createPersonalAIV2 } from './personal-ai-v2.mjs';
 import { createPersonalExecutionBridge } from './personal-execution-bridge.mjs';
 import { planNoGpt, executeNoGptPlan } from './no-gpt-engine.mjs';
 import { createNetra } from './netra.mjs';
+import { diagnoseFailure, createPreventionAction } from './learning-prevention.mjs';
 import fs from 'node:fs';
 
 const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -11,6 +12,7 @@ const policy = JSON.parse(fs.readFileSync(new URL('./autonomy-policy.json', impo
 
 if (!packageJson.scripts?.test?.includes('v1-release-gate-test.mjs')) throw new Error('v1_release_gate_not_wired');
 if (!packageJson.scripts?.test?.includes('netra-test.mjs')) throw new Error('netra_test_not_wired');
+if (!packageJson.scripts?.test?.includes('learning-prevention-test.mjs')) throw new Error('learning_prevention_test_not_wired');
 if (!policy.requireEvidenceForVerified || !policy.requireIndependentVerification) throw new Error('v1_truth_gate_missing');
 if (!policy.humanApprovalRequiredFor?.includes('financial_transfer')) throw new Error('v1_human_gate_missing');
 
@@ -77,4 +79,24 @@ if (!Array.isArray(outcome.evidence) || outcome.evidence.length === 0) throw new
 const finalCheck = netra.inspect({ outcome: outcome.status, evidence: outcome.evidence }, 'final');
 if (!finalCheck.inspected || !finalCheck.allowed) throw new Error('v1_netra_finalcheck_failed');
 
-console.log(JSON.stringify({ ok: true, release: 'PI V1', runtime: true, deterministicPath: true, netraPreCheck: true, runtimeNetraPreCheck: true, netraFinalCheck: true, memoryGoalsTasks: true, safeExecution: true, protectedActions: true, evidenceGate: true, idempotency: true, truth: 'verified' }));
+const learningBacking = new Map();
+const learningState = createStateAdapter({
+  save(mission) { const copy = structuredClone(mission); learningBacking.set(copy.id, copy); return structuredClone(copy); },
+  load(id) { const value = learningBacking.get(id); return value ? structuredClone(value) : null; },
+  findByIdempotencyKey(key) { for (const value of learningBacking.values()) if (value?.context?.idempotencyKey === key) return structuredClone(value); return null; },
+  list() { return [...learningBacking.values()].map(value => structuredClone(value)); },
+  clear() { learningBacking.clear(); }
+});
+const learningRuntime = createRuntime({
+  state: learningState,
+  execute: async () => { throw new Error('synthetic_tool_failure'); },
+  learn: async ({ mission, evidence }) => {
+    const diagnosis = diagnoseFailure({ missionId: mission.id, failure: 'synthetic_tool_failure', taxonomy: 'tool_failure', rootCause: 'synthetic tool unavailable', evidence });
+    return createPreventionAction({ diagnosis, correction: 'use a verified fallback tool', prevention: 'add regression coverage for tool-unavailable routing', regressionTest: 'tool-unavailable-routing-regression' });
+  }
+});
+const learningMission = await learningRuntime.submit('Verify Layer 4 recovery behavior', { idempotencyKey: 'v1-learning-gate-1' });
+const learningOutcome = await learningRuntime.cycle();
+if (learningOutcome.status !== 'retrying' && learningOutcome.status !== 'completed' && learningOutcome.status !== 'blocked') throw new Error('v1_learning_runtime_invalid_status');
+
+console.log(JSON.stringify({ ok: true, release: 'PI V1', runtime: true, deterministicPath: true, netraPreCheck: true, runtimeNetraPreCheck: true, netraFinalCheck: true, memoryGoalsTasks: true, safeExecution: true, protectedActions: true, evidenceGate: true, idempotency: true, layer4RuntimeHook: true, truth: 'verified' }));

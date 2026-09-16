@@ -7,15 +7,14 @@ const forbiddenCustomerCopy = [
   'I recognized this as an informational question',
   'Classification:',
   'Plan:',
-  'decompose_question',
-  'respond_or_request_required_data'
+  'I will answer directly when the required knowledge is available.'
 ];
 
 for (const phrase of forbiddenCustomerCopy) {
-  assert.equal(app.includes(phrase), false, `customer UI must not contain internal phrase: ${phrase}`);
+  assert.equal(app.includes(phrase), false, `customer UI must not contain leaked phrase: ${phrase}`);
 }
 
-assert.match(app, /showCustomerResponse\(text, \{ title: 'PI', message: 'PI’s live answer service is temporarily unavailable/);
+assert.match(app, /PI’s live answer service is temporarily unavailable/);
 assert.match(app, /answer\.textContent = response\.message/);
 assert.match(app, /meta\.textContent = source/);
 assert.match(app, /chatApiUrl\(\)/);

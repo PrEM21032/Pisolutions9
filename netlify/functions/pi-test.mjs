@@ -23,7 +23,7 @@ try {
   const body = JSON.parse(planned.body);
   if (body.ok !== true || body.plan.mode !== 'no-gpt') throw new Error('cloud_plan_invalid');
   if (body.result.status !== 'completed') throw new Error('cloud_cycle_failed');
-  if (!Array.isArray(body.result.uncertainty) || !body.result.uncertainty.some(item => item.includes('External facts and actions'))) throw new Error('truth_boundary_missing');
+  if (!Array.isArray(body.result.uncertainty) || !body.result.uncertainty.some(item => /does not invent current external facts/i.test(item) && /live data requests require a verified data source/i.test(item))) throw new Error('truth_boundary_missing');
 
   const bad = await handler({ httpMethod: 'POST', body: '{', headers: { authorization: 'Bearer test-owner-token' } });
   if (bad.statusCode !== 400) throw new Error('invalid_json_not_rejected');

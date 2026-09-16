@@ -27,7 +27,7 @@ export function deterministicFallback(message) {
   const math = arithmetic(message);
   if (math !== null) return `The answer is ${math}.`;
 
-  if (/^(hi|hello|hey|good morning|good afternoon|good evening)[!. ]*$/.test(text)) {
+  if (/^(hi|hello|hey|good morning|good afternoon|good evening)[!. ]*$/.test(text) || text.includes('say hello')) {
     return 'Hello — I’m PI. What would you like to work on?';
   }
 

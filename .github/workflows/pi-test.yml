@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 env:
-  PI_PUBLIC_URL: https://pi-lab-o019.netlify.app
+  PI_PUBLIC_URL: https://pisolutions9.github.io/Pisolutions9
+  PI_CHAT_URL: https://pi-chat.premchandyadlapati.workers.dev/api/chat
 
 jobs:
   test:
@@ -23,13 +24,30 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Full regression gate
         run: npm test
-      - name: Live production HTTP smoke test
+      - name: Live production customer HTTP smoke test
+        shell: bash
         run: |
           set -euo pipefail
-          echo "Testing $PI_PUBLIC_URL/api/health"
-          status="$(curl --silent --show-error --location --max-time 20 --retry 3 --retry-all-errors --output /tmp/pi-health.json --write-out '%{http_code}' "$PI_PUBLIC_URL/api/health")"
-          echo "HTTP status: $status"
-          cat /tmp/pi-health.json
-          test "$status" -ge 200
-          test "$status" -lt 300
-          grep -Eiq '"(ok|healthy|status)"[[:space:]]*:[[:space:]]*(true|"ok"|"healthy"|"ready")' /tmp/pi-health.json
+          echo "Testing customer site: $PI_PUBLIC_URL"
+          site_status="$(curl --silent --show-error --location --max-time 20 --retry 3 --retry-all-errors --output /tmp/pi-site.html --write-out '%{http_code}' "$PI_PUBLIC_URL/")"
+          echo "Customer site HTTP status: $site_status"
+          test "$site_status" -ge 200
+          test "$site_status" -lt 300
+          grep -Fq 'app.js' /tmp/pi-site.html
+          grep -Fq 'Autonomous Intelligence' /tmp/pi-site.html
+
+          answers=()
+          for question in 'What is 2 plus 2?' 'Why is the sky blue?' 'Say hello in one short sentence.'; do
+            status="$(curl --silent --show-error --location --max-time 30 --retry 3 --retry-all-errors \
+              -H 'content-type: application/json' \
+              -H 'origin: https://pisolutions9.github.io' \
+              -d "$(python -c 'import json,sys; print(json.dumps({"message":sys.argv[1]}))' "$question")" \
+              --output /tmp/pi-chat.json --write-out '%{http_code}' "$PI_CHAT_URL")"
+            echo "Chat HTTP status: $status"
+            cat /tmp/pi-chat.json
+            test "$status" = 200
+            python -c 'import json; d=json.load(open("/tmp/pi-chat.json")); assert d.get("ok") is True and isinstance(d.get("answer"), str) and d["answer"].strip(); a=d["answer"].lower(); forbidden=("classification:","plan:","i recognized this as an informational question","i will answer directly when the required knowledge is available."); assert not any(x in a for x in forbidden)'
+            answers+=("$(python -c 'import json; print(json.load(open("/tmp/pi-chat.json"))["answer"])')")
+          done
+          test "${answers[0]}" != "${answers[1]}"
+          test "${answers[1]}" != "${answers[2]}"

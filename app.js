@@ -104,7 +104,7 @@ function runLocalMission(text, note = 'Local zero-cost mode') {
 }
 
 function chatApiUrl() {
-  const configuredBase = window.PI_CHAT_API_BASE || document.documentElement.dataset.piChatApiBase || '';
+  const configuredBase = window.PI_CHAT_API_BASE || document.documentElement.dataset.piChatApiBase || 'https://pi-chat.premchandyadlapati.workers.dev';
   const base = configuredBase.replace(/\/$/, '');
   return `${base}/api/chat`;
 }

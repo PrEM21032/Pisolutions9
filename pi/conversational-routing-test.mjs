@@ -7,9 +7,7 @@ const cases = [
   ['What is the weather today?', 'conversation', 'weather'],
   ['What time is it in Tokyo?', 'conversation', 'time'],
   ['Convert 5 miles to kilometers', 'conversation', 'conversion'],
-  ['Explain photosynthesis', 'conversation', 'explanation'],
-  ['Research the Indian pesticide market', 'mission', null],
-  ['Build and test the next PI capability', 'mission', null]
+  ['Explain photosynthesis', 'conversation', 'explanation']
 ];
 
 for (const [input, route, intent] of cases) {
@@ -21,8 +19,32 @@ for (const [input, route, intent] of cases) {
   if (route === 'conversation') assert.ok(result.customerResponse?.message, input);
 }
 
-const protectedLikeMission = planNoGpt('Transfer $500 to my account');
-assert.equal(protectedLikeMission.route, 'mission');
-assert.notEqual(protectedLikeMission.domains[0], 'conversation');
+// V1 human-first acceptance: materially different objectives must route differently.
+const objectiveCases = [
+  ['Research the Indian pesticide market', 'research', 'research'],
+  ['Build and test the next PI capability', 'creation', 'engineering'],
+  ['Why is the API failing?', 'troubleshooting', 'engineering'],
+  ['Should I compare these two business options?', 'decision-support', 'business'],
+  ['Make a roadmap for launching PI', 'planning', 'engineering'],
+  ['What is photosynthesis?', 'information', 'general']
+];
 
-console.log(JSON.stringify({ ok: true, test: 'conversational-routing', cases: cases.length + 1, truth: 'verified' }));
+const objectivePlans = objectiveCases.map(([input, route, domain]) => planNoGpt(input));
+for (let i = 0; i < objectiveCases.length; i += 1) {
+  const [input, route, domain] = objectiveCases[i];
+  assert.equal(objectivePlans[i].route, route, input);
+  assert.equal(objectivePlans[i].intent, objectivePlans[i].humanUnderstanding.intents[0], input);
+  assert.equal(objectivePlans[i].domains.includes(domain), true, input);
+  assert.equal(objectivePlans[i].planner, 'human-first-router', input);
+}
+assert.equal(new Set(objectivePlans.map(plan => plan.route)).size, objectiveCases.length, 'objectives collapsed into same route');
+
+const vague = planNoGpt('help');
+assert.equal(vague.route, 'clarification');
+assert.equal(vague.humanUnderstanding.needsClarification, true);
+assert.equal(executeNoGptPlan(vague).customerResponse?.title, 'Clarification needed');
+
+const protectedLikeMission = planNoGpt('Transfer $500 to my account');
+assert.notEqual(protectedLikeMission.route, 'conversation');
+
+console.log(JSON.stringify({ ok: true, test: 'conversational-routing', humanFirst: true, cases: cases.length + objectiveCases.length + 2, truth: 'verified' }));

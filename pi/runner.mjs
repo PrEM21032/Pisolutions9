@@ -8,6 +8,8 @@ import { createPersonalAIV2 } from './personal-ai-v2.mjs';
 const enabled = process.env.PI_AUTONOMOUS_ENABLED !== 'false';
 const objective = process.env.PI_OBJECTIVE || 'Run a safe PI runtime health cycle';
 const statePath = String(process.env.PI_STATE_FILE_PATH || '').trim();
+const parsedMaxCycles = Number(process.env.PI_MAX_CYCLES || 3);
+const maxCycles = Number.isInteger(parsedMaxCycles) && parsedMaxCycles > 0 ? Math.min(parsedMaxCycles, 10) : 3;
 const personalAI = createPersonalAIV2();
 
 // Zero-cost first: deterministic PI is the default intelligence path.
@@ -48,11 +50,11 @@ const runtime = createRuntime({
 });
 
 if (!enabled) {
-  console.log(JSON.stringify({ status: 'paused', mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', personalAI: personalAI.snapshot(), truth: 'verified' }, null, 2));
+  console.log(JSON.stringify({ status: 'paused', mode: 'zero-cost-first', maxCycles, providers: modelRouter.available(), state: statePath ? 'file' : 'memory', personalAI: personalAI.snapshot(), truth: 'verified' }, null, 2));
   process.exit(0);
 }
 
 const mission = await runtime.submit(objective, { idempotencyKey: `local-cycle:${objective}` });
-const outcome = await runtime.cycle();
-console.log(JSON.stringify({ mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', ...outcome }, null, 2));
+const outcome = await runtime.runCycles({ maxCycles });
+console.log(JSON.stringify({ mode: 'zero-cost-first', providers: modelRouter.available(), state: statePath ? 'file' : 'memory', maxCycles, missionId: mission.id, ...outcome }, null, 2));
 if (outcome.status !== 'completed') process.exit(1);

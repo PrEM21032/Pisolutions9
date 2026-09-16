@@ -10,9 +10,10 @@ import fs from 'node:fs';
 const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const policy = JSON.parse(fs.readFileSync(new URL('./autonomy-policy.json', import.meta.url), 'utf8'));
 
-if (!packageJson.scripts?.test?.includes('v1-release-gate-test.mjs')) throw new Error('v1_release_gate_not_wired');
-if (!packageJson.scripts?.test?.includes('netra-test.mjs')) throw new Error('netra_test_not_wired');
-if (!packageJson.scripts?.test?.includes('learning-prevention-test.mjs')) throw new Error('learning_prevention_test_not_wired');
+const wiredScripts = [packageJson.scripts?.test, packageJson.scripts?.['test:v1']].filter(Boolean).join(' ');
+if (!wiredScripts.includes('v1-release-gate-test.mjs')) throw new Error('v1_release_gate_not_wired');
+if (!wiredScripts.includes('netra-test.mjs')) throw new Error('netra_test_not_wired');
+if (!wiredScripts.includes('learning-prevention-test.mjs')) throw new Error('learning_prevention_test_not_wired');
 if (!policy.requireEvidenceForVerified || !policy.requireIndependentVerification) throw new Error('v1_truth_gate_missing');
 if (!policy.humanApprovalRequiredFor?.includes('financial_transfer')) throw new Error('v1_human_gate_missing');
 

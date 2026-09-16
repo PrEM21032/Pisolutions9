@@ -19,10 +19,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Self-test
-        run: node pi/self-test.mjs
-      - name: Conversational routing regression
-        run: node pi/conversational-routing-test.mjs
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Full regression gate
+        run: npm test
       - name: Live production HTTP smoke test
         run: |
           set -euo pipefail

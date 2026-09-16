@@ -14,7 +14,18 @@ const DOMAIN_RULES = [
   { name: 'research', pattern: /research|compare|find|learn|analyze|study|investigate/i, tasks: ['decompose_question', 'collect_available_evidence', 'compare_findings'] }
 ];
 
+const CONVERSATIONAL_RULES = [
+  { name: 'greeting', pattern: /^(hi|hello|hey|good morning|good afternoon|good evening|namaste)\b[!. ]*$/i },
+  { name: 'math', pattern: /^(what is|calculate|solve)\s+[-+*/(). 0-9]+\??$/i },
+  { name: 'weather', pattern: /\b(weather|forecast|temperature|rain|snow|wind|humidity)\b/i },
+  { name: 'time', pattern: /\b(what time|current time|time is it)\b/i },
+  { name: 'conversion', pattern: /\b(convert|conversion)\b/i },
+  { name: 'explanation', pattern: /^(what is|what are|who is|why is|how does|explain|define)\b/i }
+];
+
 const TASK_LABELS = {
+  understand_request: ['Understand the request', 'Identify the conversational intent before choosing a workflow.'],
+  respond_or_request_required_data: ['Respond or request data', 'Answer directly when possible; request or retrieve verified data when required.'],
   define_business_goal: ['Define the business goal', 'Clarify the outcome, target user and measurable success condition.'],
   identify_constraints: ['Identify constraints', 'Capture budget, timing, location, resources and other limits.'],
   build_decision_matrix: ['Build a decision matrix', 'Structure the options, trade-offs and evidence needed before a decision.'],
@@ -32,12 +43,45 @@ const TASK_LABELS = {
   verify_available_evidence: ['Verify available evidence', 'Identify what can and cannot be established from available evidence.']
 };
 
+function localIntent(text) {
+  return CONVERSATIONAL_RULES.find(rule => rule.pattern.test(text))?.name || null;
+}
+
+function localMath(text) {
+  const expression = text.replace(/^(what is|calculate|solve)\s+/i, '').replace(/[?=]+$/g, '').trim();
+  if (!/^[0-9+*/().\s-]+$/.test(expression) || !/[0-9]/.test(expression)) return null;
+  try {
+    const value = Function(`"use strict"; return (${expression})`)();
+    return Number.isFinite(value) ? `${expression} = ${value}` : null;
+  } catch { return null; }
+}
+
+function localResponse(text, intent) {
+  if (intent === 'greeting') return { title: 'Hello', message: 'Hi — Krishna is ready. Give me a question or objective and I’ll route it to the right path.' };
+  if (intent === 'math') return { title: 'Answer', message: localMath(text) || 'I can calculate that, but I need a valid arithmetic expression.' };
+  if (intent === 'weather') return { title: 'Weather request', message: 'I recognized this as weather. Current conditions require a live weather source, so PI will not invent them.' };
+  if (intent === 'time') return { title: 'Time request', message: 'I recognized this as a current-time request. PI should use a live clock for the requested location.' };
+  if (intent === 'conversion') return { title: 'Conversion request', message: 'I recognized this as a unit-conversion request and will use a direct calculation path.' };
+  if (intent === 'explanation') return { title: 'Information request', message: 'I recognized this as an informational question and will answer directly when the required knowledge is available.' };
+  return null;
+}
+
 function planLocal(text) {
+  const intent = localIntent(text);
+  if (intent) return { route: 'conversation', intent, domains: [intent], tasks: ['understand_request', 'respond_or_request_required_data'] };
   const matched = DOMAIN_RULES.filter(rule => rule.pattern.test(text));
   const domains = matched.length ? matched.map(rule => rule.name) : ['general'];
   const tasks = [...new Set(matched.flatMap(rule => rule.tasks))];
   if (!tasks.length) tasks.push('define_objective', 'identify_constraints', 'verify_available_evidence');
-  return { domains, tasks };
+  return { route: 'mission', domains, tasks };
+}
+
+function showCustomerResponse(text, response, plan, source) {
+  missionTitle.textContent = response.title;
+  steps.innerHTML = `<div class="step"><i>01</i><div><strong>${response.message}</strong><small>${plan.intent}${response.title === 'Weather request' ? ' · live data required' : ''}</small></div></div>`;
+  confidence.textContent = `${source} · ${plan.intent}`;
+  mission.classList.remove('hidden');
+  mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function showMission(text, plan, status, source) {
@@ -53,41 +97,28 @@ function showMission(text, plan, status, source) {
 
 function runLocalMission(text, note = 'Local zero-cost mode') {
   const plan = planLocal(text);
-  showMission(text, plan, note, 'No external action claimed');
+  const response = plan.route === 'conversation' ? localResponse(text, plan.intent) : null;
+  if (response) showCustomerResponse(text, response, plan, note);
+  else showMission(text, plan, note, 'No external action claimed');
   systemStatus.textContent = 'Local PI ready';
 }
 
 async function runCloudMission(text) {
   const token = ownerToken.value.trim();
-  if (!token) {
-    runLocalMission(text);
-    return;
-  }
-
+  if (!token) { runLocalMission(text); return; }
   run.disabled = true;
   systemStatus.textContent = 'Krishna running…';
   try {
-    const response = await fetch('/api/pi', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ objective: text })
-    });
+    const response = await fetch('/api/pi', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ objective: text }) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'cloud_request_failed');
-    showMission(body.plan.objective, body.plan, 'Cloud plan verified', 'Deterministic PI runtime');
+    if (body.result?.customerResponse) showCustomerResponse(body.plan.objective, body.result.customerResponse, body.plan, 'Cloud PI response');
+    else showMission(body.plan.objective, body.plan, 'Cloud plan verified', 'Deterministic PI runtime');
     systemStatus.textContent = 'Cloud runtime ready';
   } catch (error) {
     runLocalMission(text, 'Cloud unavailable — automatic fallback');
-  } finally {
-    run.disabled = false;
-  }
+  } finally { run.disabled = false; }
 }
 
-document.querySelectorAll('[data-command]').forEach(button => {
-  button.addEventListener('click', () => { command.value = button.dataset.command; command.focus(); });
-});
-
-run.addEventListener('click', () => {
-  const text = command.value.trim() || 'Build the next PI capability';
-  runCloudMission(text);
-});
+document.querySelectorAll('[data-command]').forEach(button => button.addEventListener('click', () => { command.value = button.dataset.command; command.focus(); }));
+run.addEventListener('click', () => { runCloudMission(command.value.trim() || 'Build the next PI capability'); });

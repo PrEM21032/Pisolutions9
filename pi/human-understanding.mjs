@@ -5,10 +5,10 @@
 const INTENT_PATTERNS = [
   ['information', /\b(what|when|where|who|how many|how much|tell me|explain)\b/i],
   ['decision_support', /\b(should i|which|compare|worth it|best for me|recommend|choose)\b/i],
-  ['creation', /\b(build|create|make|write|design|generate|draft)\b/i],
   ['troubleshooting', /\b(error|broken|not working|fails?|fix|issue|problem|why (is|does|did))\b/i],
   ['research', /\b(research|find|look up|investigate|analy[sz]e|sources?|evidence)\b/i],
   ['planning', /\b(plan|planning|roadmap|steps|schedule|strategy)\b/i],
+  ['creation', /\b(build|create|make|write|design|generate|draft)\b/i],
 ];
 
 const SIGNAL_PATTERNS = [

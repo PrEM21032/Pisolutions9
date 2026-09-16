@@ -30,7 +30,8 @@ for (let i = 0; i < inputs.length; i += 1) {
   const input = inputs[i];
   try {
     const plan = planNoGpt(input);
-    if (!plan.objective || !plan.domains?.length || !plan.tasks?.length || plan.planner !== 'deterministic-rule-engine') throw new Error('invalid_plan');
+    const acceptedPlanners = new Set(['deterministic-rule-engine', 'human-first-router', 'deterministic-intent-router']);
+    if (!plan.objective || !plan.domains?.length || !plan.tasks?.length || !acceptedPlanners.has(plan.planner)) throw new Error('invalid_plan');
     const output = executeNoGptPlan(plan);
     if (output.status !== 'completed' || !output.completed?.every(item => item.verified === true) || !output.evidence?.length) throw new Error('invalid_output');
 

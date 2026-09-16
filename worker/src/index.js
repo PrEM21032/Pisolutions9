@@ -6,7 +6,7 @@ function corsHeaders(origin) {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
     'x-content-type-options': 'nosniff',
-    'access-control-allow-origin': origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
+    ...(origin === ALLOWED_ORIGIN ? { 'access-control-allow-origin': ALLOWED_ORIGIN } : {}),
     'access-control-allow-methods': 'POST,OPTIONS',
     'access-control-allow-headers': 'content-type',
     vary: 'Origin'
@@ -14,13 +14,16 @@ function corsHeaders(origin) {
 }
 
 function json(body, status, request) {
-  return new Response(JSON.stringify(body), { status, headers: corsHeaders(request.headers.get('Origin') || '') });
+  const origin = request.headers.get('Origin') || '';
+  return new Response(JSON.stringify(body), { status, headers: corsHeaders(origin) });
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const origin = request.headers.get('Origin') || '';
     if (url.pathname !== '/api/chat') return new Response('Not found', { status: 404 });
+    if (origin && origin !== ALLOWED_ORIGIN) return json({ ok: false, error: 'origin_not_allowed' }, 403, request);
     if (request.method === 'OPTIONS') return json({ ok: true }, 204, request);
     if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405, request);
 

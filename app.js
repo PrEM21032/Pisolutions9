@@ -59,10 +59,6 @@ function localMath(text) {
 function localResponse(text, intent) {
   if (intent === 'greeting') return { title: 'Hello', message: 'Hi — Krishna is ready. Give me a question or objective and I’ll route it to the right path.' };
   if (intent === 'math') return { title: 'Answer', message: localMath(text) || 'I can calculate that, but I need a valid arithmetic expression.' };
-  if (intent === 'weather') return { title: 'Weather request', message: 'I recognized this as weather. Current conditions require a live weather source, so PI will not invent them.' };
-  if (intent === 'time') return { title: 'Time request', message: 'I recognized this as a current-time request. Current time requires a live clock for the requested location.' };
-  if (intent === 'conversion') return { title: 'Conversion request', message: 'I recognized this as a unit-conversion request and will use a direct calculation path.' };
-  if (intent === 'explanation') return { title: 'Information request', message: 'I recognized this as an informational question and will answer directly when the required knowledge is available.' };
   return null;
 }
 
@@ -78,8 +74,8 @@ function planLocal(text) {
 
 function showCustomerResponse(text, response, plan, source) {
   missionTitle.textContent = response.title;
-  steps.innerHTML = `<div class=\"step\"><i>01</i><div><strong>${response.message}</strong><small>${plan.intent || 'conversation'}</small></div></div>`;
-  confidence.textContent = `${source} · ${plan.intent || 'conversation'}`;
+  steps.innerHTML = `<div class=\"step\"><i>01</i><div><strong>${response.message}</strong><small>${source}</small></div></div>`;
+  confidence.textContent = source;
   mission.classList.remove('hidden');
   mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -90,7 +86,7 @@ function showMission(text, plan, status, source) {
     const [label, detail] = TASK_LABELS[task] || [task.replaceAll('_', ' '), 'Planned step.'];
     return `<div class=\"step\"><i>${String(i + 1).padStart(2, '0')}</i><div><strong>${label}</strong><small>${detail}</small></div></div>`;
   }).join('');
-  confidence.textContent = `${status} · ${source} · ${plan.domains.join(' · ')}`;
+  confidence.textContent = `${status} · ${source}`;
   mission.classList.remove('hidden');
   mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -116,7 +112,7 @@ async function runCustomerChat(text) {
     const response = await fetch(chatApiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text }) });
     const body = await response.json();
     if (!response.ok || !body.answer) throw new Error(body.error || 'chat_unavailable');
-    showCustomerResponse(text, { title: 'PI', message: body.answer }, { intent: 'direct-answer' }, 'PI conversational model');
+    showCustomerResponse(text, { title: 'PI', message: body.answer }, { intent: 'direct-answer' }, 'PI');
     systemStatus.textContent = 'PI ready';
     return true;
   } catch {
@@ -137,7 +133,7 @@ async function runCloudMission(text) {
     const response = await fetch('/api/pi', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ objective: text }) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'cloud_request_failed');
-    if (body.result?.customerResponse) showCustomerResponse(body.plan.objective, body.result.customerResponse, body.plan, 'Cloud PI response');
+    if (body.result?.customerResponse) showCustomerResponse(body.plan.objective, body.result.customerResponse, body.plan, 'Cloud PI');
     else showMission(body.plan.objective, body.plan, 'Cloud plan verified', 'Deterministic PI runtime');
     systemStatus.textContent = 'Cloud runtime ready';
   } catch (error) {

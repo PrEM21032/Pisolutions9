@@ -10,8 +10,19 @@
   to = "/.netlify/functions/pi"
   status = 200
 
+[[redirects]]
+  from = "/api/chat"
+  to = "/.netlify/functions/chat"
+  status = 200
+
 [[headers]]
   for = "/api/pi"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/api/chat"
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Cache-Control = "no-store"

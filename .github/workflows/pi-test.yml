@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PI_PUBLIC_URL: https://pi-lab-o019.netlify.app
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -18,3 +21,13 @@ jobs:
           node-version: 22
       - name: Self-test
         run: node pi/self-test.mjs
+      - name: Live production HTTP smoke test
+        run: |
+          set -euo pipefail
+          echo "Testing $PI_PUBLIC_URL/api/health"
+          status="$(curl --silent --show-error --location --max-time 20 --retry 3 --retry-all-errors --output /tmp/pi-health.json --write-out '%{http_code}' "$PI_PUBLIC_URL/api/health")"
+          echo "HTTP status: $status"
+          cat /tmp/pi-health.json
+          test "$status" -ge 200
+          test "$status" -lt 300
+          grep -Eiq '"(ok|healthy|status)"[[:space:]]*:[[:space:]]*(true|"ok"|"healthy"|"ready")' /tmp/pi-health.json

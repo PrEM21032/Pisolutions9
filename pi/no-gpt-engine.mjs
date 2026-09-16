@@ -16,6 +16,16 @@ const CONVERSATIONAL_RULES = Object.freeze([
   { intent: 'explanation', pattern: /^(what is|what are|who is|why is|how does|explain|define)\b/i }
 ]);
 
+const INTENT_TASKS = Object.freeze({
+  information: ['define_information_need', 'identify_required_evidence', 'verify_answer'],
+  'decision-support': ['define_decision', 'identify_options_and_constraints', 'compare_tradeoffs', 'verify_evidence'],
+  creation: ['define_deliverable', 'identify_requirements', 'produce_draft_or_build', 'verify_deliverable'],
+  troubleshooting: ['reproduce_problem', 'classify_failure', 'identify_root_cause', 'apply_fix_or_alternative', 'regression_test'],
+  research: ['decompose_research_question', 'collect_evidence', 'cross_check_findings', 'synthesize_verified_findings'],
+  planning: ['define_target_outcome', 'sequence_dependencies', 'identify_risks_and_constraints', 'verify_plan'],
+  general: ['define_objective', 'identify_constraints', 'verify_available_evidence']
+});
+
 function classifyConversational(text) {
   return CONVERSATIONAL_RULES.find(rule => rule.pattern.test(text))?.intent || null;
 }
@@ -71,8 +81,9 @@ export function planNoGpt(objective = '') {
   const humanIntent = primaryHumanIntent(humanUnderstanding);
   const matched = DOMAIN_RULES.filter(rule => rule.pattern.test(text));
   const domains = matched.length ? matched.map(rule => rule.name) : ['general'];
-  const tasks = [...new Set(matched.flatMap(rule => rule.tasks))];
-  if (!tasks.length) tasks.push('define_objective', 'identify_constraints', 'verify_available_evidence');
+  const domainTasks = matched.flatMap(rule => rule.tasks);
+  const intentTasks = INTENT_TASKS[humanRoute(humanIntent)] || INTENT_TASKS.general;
+  const tasks = [...new Set([...intentTasks, ...domainTasks])];
 
   if (humanUnderstanding.needsClarification) {
     return Object.freeze({ mode: 'no-gpt', objective: text, route: 'clarification', intent: humanIntent, domains, tasks: ['clarify_objective', 'identify_constraints'], planner: 'human-first-router', customerIntent: null, humanUnderstanding });

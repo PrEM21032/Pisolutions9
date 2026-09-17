@@ -25,6 +25,7 @@ export function createRuntime({ execute = async () => ({ completed: [], evidence
   if (repair !== null && typeof repair !== 'function') throw new Error('invalid_repair_hook');
   if (executeSpecialist !== null && typeof executeSpecialist !== 'function') throw new Error('invalid_v2_specialist_executor');
   if (verifySpecialist !== null && typeof verifySpecialist !== 'function') throw new Error('invalid_v2_verifier');
+  if (executeSpecialist !== null && verifySpecialist === null) throw new Error('v2_independent_verifier_required');
   if (!Number.isInteger(v2MaxParallel) || v2MaxParallel < 1) throw new Error('invalid_v2_max_parallel');
   const queue = createQueue();
   const guard = createCostGuard(cost);
@@ -64,7 +65,7 @@ export function createRuntime({ execute = async () => ({ completed: [], evidence
       const boundary = missionGuard.boundary(mission.objective);
       if (!boundary.trusted) throw new Error('untrusted_instruction_boundary');
       if (executeSpecialist) {
-        const v2 = await executeV2Graph(mission.missionGraph, { executeSpecialist, verifySpecialist: verifySpecialist || undefined, context: mission.context, constraints: mission.context?.constraints || {} });
+        const v2 = await executeV2Graph(mission.missionGraph, { executeSpecialist, verifySpecialist, context: mission.context, constraints: mission.context?.constraints || {} });
         return { status: v2.status, completed: v2.completed, evidence: v2.results.flatMap(item => item.result.evidence), v2Graph: v2.graph, specialistResults: v2.results.map(item => ({ specialist: item.step.specialist, result: item.result })) };
       }
       return await execute(mission, { cost: guard, policy });

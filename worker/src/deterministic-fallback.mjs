@@ -51,15 +51,15 @@ export function deterministicFallback(message) {
     return 'I can help turn an objective into a plan, research information, reason through options, and coordinate PI’s available tools and specialists.';
   }
 
-  if (/build|create|make|launch/.test(text) && /website|web site|store|marketplace|amazon/.test(text)) {
+  if (/\b(build|create|make|launch)\b/.test(text) && /\b(website|web site|store|marketplace|amazon)\b/.test(text)) {
     return 'Yes. A product-launch marketplace can be built with a storefront, product catalog, search, product pages, cart, checkout, customer accounts, seller/admin dashboard, order management, payments, and analytics. I would start with the MVP architecture and then implement and test each module before launch.';
   }
 
-  if (/website|web site|app|software|code/.test(text)) {
+  if (/\b(website|web site|app|software|code)\b/.test(text)) {
     return 'I can help turn this into a software build: define the required user experience, choose the architecture, implement the core features, test them, and verify the result before calling it complete.';
   }
 
-  if (/business|product|market|sales|customer/.test(text)) {
+  if (/\b(business|product|market|sales|customer)\b/.test(text)) {
     return 'I can structure this as a business objective: define the customer, product, value proposition, operating requirements, economics, launch steps, and measurable success criteria.';
   }
 

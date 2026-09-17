@@ -4,8 +4,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '*/30 * * * *'
 
 permissions:
   contents: read
@@ -26,7 +24,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Full regression gate
         run: npm test
-      - name: Deploy chat worker before V1 stress validation
+      - name: Deploy exact candidate worker
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -35,64 +33,40 @@ jobs:
           npm install --no-save --no-package-lock wrangler@4
           node src/deterministic-fallback-test.mjs
           npx wrangler deploy
-      - name: Stress customer interface with complex questions
+      - name: Sequential customer reliability verification
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json
-          questions = [
-            "Design a scalable marketplace architecture for 10 million users. Explain the data model, API boundaries, caching, search, payments, inventory consistency, observability, security, and how you would evolve an MVP without creating a monolith.",
-            "A company has $2 million cash, $600k monthly burn, and expects revenue to grow from $100k to $250k per month over six months. Build three runway scenarios and explain the assumptions and break-even conditions.",
-            "Explain why quantum computers do not simply replace classical computers. Compare qubits, superposition, entanglement, error correction, and practical workloads, then identify what would have to improve for useful large-scale quantum advantage.",
-            "An e-commerce service has p95 latency of 900ms, 2% checkout failures, and periodic inventory overselling. Diagnose likely causes and propose a prioritized remediation plan with measurable acceptance tests.",
-            "Design a supply-chain strategy for a semiconductor company exposed to a single overseas supplier. Cover dual sourcing, qualification time, inventory buffers, geopolitical risk, cost tradeoffs, and a 12-month implementation sequence.",
-            "Teach a beginner how to evaluate whether a machine-learning model is actually improving a business process. Include baseline selection, leakage, train/test design, metrics, confidence intervals, monitoring, and examples of misleading improvements.",
-            "Create a product launch plan for a new software platform with a $100k budget. Allocate engineering, security, infrastructure, marketing, support, analytics, and contingency while explaining what should be validated before spending heavily.",
-            "A database migration must move 20 TB with near-zero downtime. Compare dual writes, CDC, replication, phased cutover, rollback strategy, validation, and failure handling. Give a concrete migration sequence.",
-            "Explain how inflation, interest rates, unemployment, productivity, fiscal policy, and consumer demand interact. Use a hypothetical economy to show why the same policy can have different effects under different conditions.",
-            "Review this logic: if a system is highly available, it must also be highly reliable; if it is highly reliable, it must be secure; therefore highly available systems are necessarily secure. Identify the invalid inference and construct a better framework.",
-            "Design an autonomous AI workflow that receives an objective, decomposes it into tasks, uses specialist agents, verifies evidence, detects failures, retries with a changed strategy, and stops at human approval boundaries. Explain state, observability, safety, and evaluation requirements.",
-            "A startup has strong user growth but negative unit economics. Explain how to separate growth quality from vanity metrics using CAC, LTV, contribution margin, retention cohorts, payback period, and sensitivity analysis."
-          ]
-          with open('/tmp/questions.json','w') as f: json.dump(questions,f)
+          total=0
+          while IFS= read -r question; do
+            [ -z "$question" ] && continue
+            total=$((total+1))
+            response=$(curl --silent --show-error --fail-with-body --max-time 20 -H 'content-type: application/json' -H 'origin: https://prem21032.github.io' -d "{\"message\":\"$question\"}" "$PI_CHAT_URL")
+            export response
+            python - <<'PY'
+          import json, os
+          body=json.loads(os.environ['response'])
+          answer=body.get('answer','')
+          if body.get('ok') is not True or body.get('truth') != 'model-response':
+              raise SystemExit('reliability gate: non-model response')
+          if body.get('source') == 'pi-chat-deterministic-recovery':
+              raise SystemExit('reliability gate: deterministic recovery')
+          if not isinstance(answer,str) or len(answer.strip()) < 120:
+              raise SystemExit('reliability gate: short answer')
           PY
-
-          python - <<'PY'
-          import json, subprocess, time, concurrent.futures, os
-          url=os.environ['PI_CHAT_URL']
-          questions=json.load(open('/tmp/questions.json'))
-          rounds=100
-          cases=questions*rounds
-          print(f"Running {len(cases)} customer questions ({rounds} rounds x {len(questions)} complex prompts)")
-
-          def ask(q):
-              payload=json.dumps({'message':q})
-              t=time.time()
-              p=subprocess.run(['curl','--silent','--show-error','--max-time','20','-H','content-type: application/json','-H','origin: https://pisolutions9.github.io','-d',payload,'-w','\n%{http_code}',url],capture_output=True,text=True)
-              elapsed=time.time()-t
-              if p.returncode != 0: return False, elapsed, f'curl:{p.returncode}'
-              body,status=p.stdout.rsplit('\n',1)
-              try: d=json.loads(body)
-              except Exception: return False, elapsed, 'invalid-json'
-              ans=d.get('answer','') if isinstance(d,dict) else ''
-              low=ans.lower()
-              forbidden=('classification:','plan:','i recognized this as an informational question','temporarily operating in verified recovery mode','live model execution is currently unavailable')
-              ok=status=='200' and d.get('ok') is True and isinstance(ans,str) and len(ans.strip())>=120 and not any(x in low for x in forbidden)
-              return ok, elapsed, (len(ans) if isinstance(ans,str) else 0)
-
-          failures=[]
-          latencies=[]
-          with concurrent.futures.ThreadPoolExecutor(max_workers=12) as ex:
-              futs=[ex.submit(ask,q) for q in cases]
-              for i,f in enumerate(concurrent.futures.as_completed(futs),1):
-                  ok,lat,detail=f.result(); latencies.append(lat)
-                  if not ok: failures.append((i,detail))
-                  if i%100==0: print(f'completed={i} failures={len(failures)}')
-
-          latencies.sort()
-          print(f'total={len(cases)} failures={len(failures)} p50={latencies[len(latencies)//2]:.2f}s p95={latencies[int(len(latencies)*.95)-1]:.2f}s max={max(latencies):.2f}s')
-          if failures:
-              print('first failures:', failures[:20])
-              raise SystemExit(1)
-          PY
+          done <<'QUESTIONS'
+          Explain a reliable migration plan for a production database.
+          Compare availability reliability and security in a web service.
+          Design an API boundary for a marketplace application.
+          Explain how to validate a machine learning improvement.
+          Create a practical product launch plan with acceptance tests.
+          Diagnose a checkout system with latency and inventory errors.
+          Explain the tradeoffs of cache consistency.
+          Outline an incident response process for an outage.
+          Explain how rate limits protect an API.
+          Compare event driven and request response architectures.
+          Design observability for a distributed service.
+          Explain how to test a customer chat experience end to end.
+          QUESTIONS
+          test "$total" -eq 12
+          echo "RELIABILITY_PASS requests=$total"

@@ -33,12 +33,12 @@ export function createRuntime({ execute = async () => ({ completed: [], evidence
   let cycleInFlight = false;
 
   async function submit(objective, context = {}) {
-    const boundary = missionGuard.boundary(objective);
-    observer.emit({ missionId: null, step: 'instruction_boundary', status: boundary.trusted ? 'allowed' : 'blocked', truth: 'verified', message: boundary.reason, findings: boundary.findings });
-    if (!boundary.trusted) throw new Error('untrusted_instruction_boundary');
     const preCheck = netra.inspect(objective, 'pre');
     observer.emit({ missionId: null, step: 'netra_precheck', status: preCheck.allowed ? 'allowed' : 'blocked', truth: 'verified', message: preCheck.severity, findings: preCheck.findings });
     if (!preCheck.allowed) throw new Error(`netra_precheck_blocked:${preCheck.severity}`);
+    const boundary = missionGuard.boundary(objective);
+    observer.emit({ missionId: null, step: 'instruction_boundary', status: boundary.trusted ? 'allowed' : 'blocked', truth: 'verified', message: boundary.reason, findings: boundary.findings });
+    if (!boundary.trusted) throw new Error('untrusted_instruction_boundary');
     const key = context?.idempotencyKey;
     if (key) {
       const existing = await state.findByIdempotencyKey(key);

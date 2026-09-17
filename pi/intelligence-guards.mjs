@@ -18,10 +18,13 @@ export function createModelBudget({ maxCalls = 10, maxInputBytes = 32768, maxOut
 }
 
 export function validateModelResult(result = {}) {
-  if (!result || typeof result !== 'object') throw new Error('invalid_model_result');
-  if (result.truth != null && !TRUTH.has(result.truth)) throw new Error('invalid_truth_level');
-  if (result.completed != null && !Array.isArray(result.completed)) throw new Error('invalid_completed_shape');
-  if (result.evidence != null && !Array.isArray(result.evidence)) throw new Error('invalid_evidence_shape');
+  if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('invalid_model_result');
+  if (typeof result.truth !== 'string' || !TRUTH.has(result.truth)) throw new Error('invalid_truth_level');
+  if (!Array.isArray(result.completed)) throw new Error('invalid_completed_shape');
+  if (!Array.isArray(result.evidence)) throw new Error('invalid_evidence_shape');
+  if (result.truth === 'verified' && result.evidence.length === 0) throw new Error('verified_model_result_requires_evidence');
+  if (result.uncertainty != null && !Array.isArray(result.uncertainty)) throw new Error('invalid_uncertainty_shape');
+  if (result.nextAction != null && typeof result.nextAction !== 'string') throw new Error('invalid_next_action_shape');
   return Object.freeze({ ok: true, result });
 }
 

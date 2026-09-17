@@ -47,8 +47,8 @@ await assert.rejects(() => executeV2Graph(graph, {
 }), /truthLevel/);
 
 await assert.rejects(() => executeV2Graph(graph, {
-  executeSpecialist: async () => ({ result: 'bad', evidence: [], truthLevel: 'verified', failureClass: 'unknown' }),
-  verifySpecialist: async () => ({ result: 'bad', evidence: [], truthLevel: 'unknown' })
+  executeSpecialist: async () => ({ result: 'bad', evidence: [{ source: 'fixture', claim: 'bad' }], truthLevel: 'verified', failureClass: 'unknown' }),
+  verifySpecialist: async () => ({ result: 'bad', evidence: [{ source: 'fixture', claim: 'bad' }], truthLevel: 'unknown' })
 }), /failureClass/);
 
 console.log('PI V2 execution tests passed');

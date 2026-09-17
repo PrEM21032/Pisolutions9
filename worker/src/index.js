@@ -6,7 +6,7 @@ const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 500;
 const MAX_RATE_LIMIT_RETRIES = 0;
 const PROVIDER_TIMEOUT_MS = 5000;
-const EDGE_TIMEOUT_MS = 4500;
+const EDGE_TIMEOUT_MS = 8000;
 const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
 const EDGE_ALTERNATIVE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5'];
@@ -89,7 +89,7 @@ async function runEdgeWithTimeout(env, model, message) {
     max_tokens: MAX_OUTPUT_TOKENS
   };
   if (model === EDGE_ALTERNATIVE_MODEL) input.chat_template_kwargs = { enable_thinking: false };
-  const work = env.AI.run(model, input);
+  const work = env.AI.run(model, input, { gateway: { id: 'default', skipCache: true } });
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`edge model timeout: ${model}`)), EDGE_TIMEOUT_MS));
   return Promise.race([work, timeout]);
 }
@@ -98,11 +98,13 @@ async function callWorkersAI(env, message) {
   if (!env.AI || typeof env.AI.run !== 'function') return null;
   const configured = env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL;
   const models = [...new Set([configured, EDGE_ALTERNATIVE_MODEL])];
-  const results = await Promise.allSettled(models.map(model => runEdgeWithTimeout(env, model, message)));
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      const answer = extractEdgeAnswer(result.value);
+  for (const model of models) {
+    try {
+      const result = await runEdgeWithTimeout(env, model, message);
+      const answer = extractEdgeAnswer(result);
       if (answer) return answer;
+    } catch (error) {
+      console.error(`Workers AI model failed: ${model}`, error instanceof Error ? error.message : String(error));
     }
   }
   return null;
@@ -130,7 +132,6 @@ export default {
     if (!message) return json({ ok: false, error: 'message_required' }, 400, request);
     if (message.length > MAX_INPUT) return json({ ok: false, error: 'message_too_large' }, 413, request);
 
-    // Prefer the Cloudflare edge path first so OpenAI rate limits do not block live customer answers.
     const edgeAnswer = await callWorkersAI(env, message);
     if (edgeAnswer) return json({ ok: true, answer: edgeAnswer, source: 'pi-chat-cloudflare-ai', truth: 'model-response' }, 200, request);
 

@@ -6,6 +6,6 @@ assert.match(deterministicFallback('Why is the sky blue?'), /scatters shorter bl
 assert.match(deterministicFallback('Say hello in one short sentence.'), /^Hello/);
 assert.match(deterministicFallback('Hello'), /^Hello/);
 assert.equal(deterministicFallback('What is 12 divided by 3?'), 'The answer is 4.');
-assert.equal(deterministicFallback('Tell me the stock price of Apple right now.'), null);
+assert.match(deterministicFallback('Tell me the stock price of Apple right now.'), /verified recovery mode/);
 
 console.log('Deterministic chat recovery tests passed.');

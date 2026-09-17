@@ -15,7 +15,10 @@ const guard = createMissionGuardrails({ clock: () => now, limits: { maxActions: 
 guard.action();
 guard.action();
 assert.throws(() => guard.action(), /action_budget_exceeded/);
-assert.throws(() => guard.model() && guard.model(), /model_call_budget_exceeded/);
+
+guard.beginMission();
+guard.model();
+assert.throws(() => guard.model(), /model_call_budget_exceeded/);
 
 const accepted = memoryAdmission({ value: 'Verified release test passed', source: 'verified-result', confidence: 0.95 });
 assert.equal(accepted.accepted, true);

@@ -1,8 +1,6 @@
 // PI V1 release-candidate deployment marker: keep the customer worker deployment tied to this release train.
 // Launch-gate path: sequential Workers AI model routing through AI Gateway, sequential provider fallback, deterministic emergency recovery.
-import { deterministicFallback } from './deterministic-fallback.mjs';
-
-const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
+import { deterministicFallback } from './deterministic-fallback.mjs';const ALLOWED_ORIGIN = 'https://prem21032.github.io';
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 256;
 const PROVIDER_TIMEOUT_MS = 8000;

@@ -1,0 +1,1 @@
+Force a fresh PI chat-worker deployment so the committed deterministic recovery path is re-published and live smoke-tested.

@@ -8,6 +8,7 @@ import { createCostGuard } from './cost-guard.mjs';
 import { createDeadLetterStore } from './dead-letter.mjs';
 import { createDelegationPlan, validateDelegation } from './delegation.mjs';
 import { createExecutionPolicy } from './policy.mjs';
+import { classifyBlocker } from './blocker-router.mjs';
 import { createAutonomousRecovery } from './autonomous-recovery.mjs';
 import { createNetra } from './netra.mjs';
 import { verifyLearningAction } from './learning-prevention.mjs';

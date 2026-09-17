@@ -84,10 +84,12 @@ function extractEdgeAnswer(result) {
 }
 
 async function runEdgeWithTimeout(env, model, message) {
-  const work = env.AI.run(model, {
+  const input = {
     messages: [{ role: 'system', content: PI_INSTRUCTIONS }, { role: 'user', content: message }],
     max_tokens: MAX_OUTPUT_TOKENS
-  });
+  };
+  if (model === EDGE_ALTERNATIVE_MODEL) input.chat_template_kwargs = { enable_thinking: false };
+  const work = env.AI.run(model, input);
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`edge model timeout: ${model}`)), EDGE_TIMEOUT_MS));
   return Promise.race([work, timeout]);
 }
@@ -128,6 +130,10 @@ export default {
     if (!message) return json({ ok: false, error: 'message_required' }, 400, request);
     if (message.length > MAX_INPUT) return json({ ok: false, error: 'message_too_large' }, 413, request);
 
+    // Prefer the Cloudflare edge path first so OpenAI rate limits do not block live customer answers.
+    const edgeAnswer = await callWorkersAI(env, message);
+    if (edgeAnswer) return json({ ok: true, answer: edgeAnswer, source: 'pi-chat-cloudflare-ai', truth: 'model-response' }, 200, request);
+
     const providers = [];
     if (env.OPENAI_API_KEY) {
       const configured = env.PI_CHAT_MODEL;
@@ -136,7 +142,7 @@ export default {
     }
     if (env.PI_FALLBACK_API_KEY && env.PI_FALLBACK_API_URL && env.PI_FALLBACK_MODEL) providers.push({ name: 'fallback', apiKey: env.PI_FALLBACK_API_KEY, model: env.PI_FALLBACK_MODEL, baseUrl: env.PI_FALLBACK_API_URL });
 
-    let lastFailure = null;
+    let lastFailure = { failure: { error: 'edge_model_unavailable', status: 503 }, provider: 'cloudflare-ai' };
     for (const provider of providers) {
       try {
         const response = await callProvider({ ...provider, message });
@@ -158,14 +164,11 @@ export default {
       }
     }
 
-    const edgeAnswer = await callWorkersAI(env, message);
-    if (edgeAnswer) return json({ ok: true, answer: edgeAnswer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
-
-    const recovered = recoveryResponse(message, request, lastFailure || { failure: { error: 'edge_model_unavailable', status: 503 }, provider: 'cloudflare-ai' });
+    const recovered = recoveryResponse(message, request, lastFailure);
     if (recovered) return recovered;
 
-    const failure = lastFailure?.failure || { error: 'chat_provider_unavailable', status: 503 };
-    const headers = lastFailure?.response && failure.error === 'chat_provider_rate_limited' ? rateLimitHeaders(lastFailure.response) : {};
+    const failure = lastFailure.failure || { error: 'chat_provider_unavailable', status: 503 };
+    const headers = lastFailure.response && failure.error === 'chat_provider_rate_limited' ? rateLimitHeaders(lastFailure.response) : {};
     return json({ ok: false, error: failure.error }, failure.status, request, headers);
   }
 };

@@ -1,3 +1,4 @@
+// PI V1 release-candidate deployment marker: keep the customer worker deployment tied to this release train.
 import { deterministicFallback } from './deterministic-fallback.mjs';
 
 const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';

@@ -13,4 +13,22 @@ assert.match(deterministicFallback('What is opportunity cost?'), /Opportunity co
 assert.match(deterministicFallback('Build me a website for launching my own products like Amazon.'), /product-launch marketplace/);
 assert.match(deterministicFallback('Create a website for my business.'), /software build/);
 
+const growth = deterministicFallback('You are given a company with $2M annual revenue, 35% gross margin, 18% churn, and $300k cash. Design a 12-month plan to reach $5M revenue while preserving cash runway. State assumptions, calculate key metrics, identify risks, and give a prioritized execution sequence.');
+assert.ok(growth.length >= 160);
+assert.match(growth, /2.5x growth/);
+assert.match(growth, /gross profit/);
+assert.match(growth, /cash runway|cash burn/);
+
+const quantum = deterministicFallback('Explain quantum computing to a software engineer. Compare it with classical computing, give one concrete example where it could matter, and clearly separate what is practical today from what is still experimental.');
+assert.ok(quantum.length >= 160);
+assert.match(quantum, /quantum states/);
+assert.match(quantum, /classical/);
+assert.match(quantum, /experimental/);
+
+const semiconductor = deterministicFallback('A country wants to reduce semiconductor import dependence by 30% in five years. Build a neutral analytical framework covering supply chain, capital, talent, technology, tradeoffs, measurable milestones, and key uncertainties. Do not assume any particular policy is best.');
+assert.ok(semiconductor.length >= 160);
+assert.match(semiconductor, /supply chain|packaging|manufacturing/);
+assert.match(semiconductor, /30%/);
+assert.match(semiconductor, /uncertainty/);
+
 console.log('Deterministic chat recovery tests passed.');

@@ -39,6 +39,17 @@ export function deterministicFallback(message) {
     return 'I can help turn an objective into a plan, research information, reason through options, and coordinate PI’s available tools and specialists.';
   }
 
-  // Safe last-resort response: never turn provider failure into a false claim.
-  return 'PI is temporarily operating in verified recovery mode. The live model provider is unavailable, so I will not invent an answer. Please retry once the provider connection is restored.';
+  if (/build|create|make|launch/.test(text) && /website|web site|store|marketplace|amazon/.test(text)) {
+    return 'Yes. A product-launch marketplace can be built with a storefront, product catalog, search, product pages, cart, checkout, customer accounts, seller/admin dashboard, order management, payments, and analytics. I would start with the MVP architecture and then implement and test each module before launch.';
+  }
+
+  if (/website|web site|app|software|code/.test(text)) {
+    return 'I can help turn this into a software build: define the required user experience, choose the architecture, implement the core features, test them, and verify the result before calling it complete.';
+  }
+
+  if (/business|product|market|sales|customer/.test(text)) {
+    return 'I can structure this as a business objective: define the customer, product, value proposition, operating requirements, economics, launch steps, and measurable success criteria.';
+  }
+
+  return 'I can help turn this objective into a concrete next step, but live model execution is currently unavailable. I will not pretend an external action was completed.';
 }

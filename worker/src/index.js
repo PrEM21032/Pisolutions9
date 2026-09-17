@@ -4,6 +4,8 @@ const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 500;
 const MAX_RATE_LIMIT_RETRIES = 2;
+const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
+const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";
 
 function corsHeaders(origin) {
   return {
@@ -57,7 +59,7 @@ async function callProvider({ apiKey, model, baseUrl, message }) {
         model,
         store: false,
         max_output_tokens: MAX_OUTPUT_TOKENS,
-        instructions: "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.",
+        instructions: PI_INSTRUCTIONS,
         input: message
       })
     });
@@ -71,6 +73,17 @@ async function callProvider({ apiKey, model, baseUrl, message }) {
 
 function extractAnswer(body) {
   return body?.output_text?.trim() || body?.output?.flatMap(item => item?.content || []).find(part => part?.type === 'output_text')?.text?.trim();
+}
+
+async function callWorkersAI(env, message) {
+  if (!env.AI || typeof env.AI.run !== 'function') return null;
+  const prompt = `${PI_INSTRUCTIONS}\n\nUser question:\n${message}`;
+  const result = await env.AI.run(env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL, {
+    prompt,
+    max_tokens: MAX_OUTPUT_TOKENS
+  });
+  if (typeof result === 'string') return result.trim() || null;
+  return result?.response?.trim?.() || result?.output_text?.trim?.() || result?.choices?.[0]?.message?.content?.trim?.() || null;
 }
 
 function recoveryResponse(message, request, failure) {
@@ -99,11 +112,6 @@ export default {
     if (env.OPENAI_API_KEY) providers.push({ name: 'openai', apiKey: env.OPENAI_API_KEY, model: env.PI_CHAT_MODEL || 'gpt-5.6-luna', baseUrl: 'https://api.openai.com/v1' });
     if (env.PI_FALLBACK_API_KEY && env.PI_FALLBACK_API_URL && env.PI_FALLBACK_MODEL) providers.push({ name: 'fallback', apiKey: env.PI_FALLBACK_API_KEY, model: env.PI_FALLBACK_MODEL, baseUrl: env.PI_FALLBACK_API_URL });
 
-    if (!providers.length) {
-      const recovered = recoveryResponse(message, request, { failure: { error: 'chat_provider_not_configured', status: 503 } });
-      return recovered || json({ ok: false, error: 'chat_provider_not_configured' }, 503, request);
-    }
-
     let lastFailure = null;
     for (const provider of providers) {
       try {
@@ -124,6 +132,14 @@ export default {
       } catch {
         lastFailure = { failure: { error: 'chat_provider_network_error', status: 503 }, provider: provider.name };
       }
+    }
+
+    try {
+      const answer = await callWorkersAI(env, message);
+      if (answer) return json({ ok: true, answer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
+      lastFailure = { failure: { error: 'edge_model_empty_response', status: 502 }, provider: 'cloudflare-ai' };
+    } catch {
+      lastFailure = { failure: { error: 'edge_model_unavailable', status: 503 }, provider: 'cloudflare-ai' };
     }
 
     const recovered = recoveryResponse(message, request, lastFailure);

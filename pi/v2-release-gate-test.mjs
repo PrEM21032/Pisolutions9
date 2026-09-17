@@ -42,7 +42,10 @@ assert.equal(result.completed.length, 6);
 assert.ok(result.graph.steps.every(step => step.state === 'verified'));
 const verifyIndex = executionOrder.findIndex(item => item === 'start:verify');
 assert.ok(verifyIndex > -1);
-assert.ok(executionOrder.slice(0, verifyIndex).every(item => item.startsWith('end:specialist_')));
+for (const step of graph.steps.filter(step => step.id !== 'verify')) {
+  const endIndex = executionOrder.findIndex(item => item === `end:${step.id}`);
+  assert.ok(endIndex > -1 && endIndex < verifyIndex);
+}
 
 const policy = createExecutionPolicy();
 for (const type of ['irreversible_external_action', 'legal_commitment', 'financial_transfer', 'secret_rotation', 'production_destructive_change']) {

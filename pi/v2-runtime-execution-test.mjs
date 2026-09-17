@@ -10,6 +10,12 @@ const state = {
   async clear() { missions.clear(); }
 };
 
+assert.throws(() => createRuntime({
+  state,
+  netra: { inspect: () => ({ allowed: true, severity: 'low', findings: [] }) },
+  executeSpecialist: async () => ({ result: 'unverified', evidence: [], truthLevel: 'unknown', failureClass: 'unknown' })
+}), /v2_independent_verifier_required/);
+
 const runtime = createRuntime({
   state,
   netra: { inspect: () => ({ allowed: true, severity: 'low', findings: [] }) },

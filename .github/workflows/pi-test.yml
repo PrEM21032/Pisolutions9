@@ -62,8 +62,14 @@ jobs:
             'What is the difference between RAM and storage?'
             'Explain opportunity cost in simple terms.'
             'Build me a website for launching my own products like Amazon.'
+            'You are given a company with $2M annual revenue, 35% gross margin, 18% churn, and $300k cash. Design a 12-month plan to reach $5M revenue while preserving cash runway. State assumptions, calculate key metrics, identify risks, and give a prioritized execution sequence.'
+            'Explain quantum computing to a software engineer. Compare it with classical computing, give one concrete example where it could matter, and clearly separate what is practical today from what is still experimental.'
+            'I want to launch a niche marketplace like Amazon. Design the MVP architecture, database entities, APIs, payment flow, seller onboarding, search, security controls, testing strategy, and phased launch plan for a small team.'
+            'A country wants to reduce semiconductor import dependence by 30% in five years. Build a neutral analytical framework covering supply chain, capital, talent, technology, tradeoffs, measurable milestones, and key uncertainties. Do not assume any particular policy is best.'
           )
-          for question in "${questions[@]}"; do
+          complex_questions=4
+          for index in "${!questions[@]}"; do
+            question="${questions[$index]}"
             status="$(curl --silent --show-error --location --max-time 20 --retry 2 --retry-all-errors \
               -H 'content-type: application/json' \
               -H 'origin: https://pisolutions9.github.io' \
@@ -72,8 +78,12 @@ jobs:
             echo "Chat HTTP status: $status | input: $question"
             cat /tmp/pi-chat.json
             test "$status" = 200
-            python -c 'import json; d=json.load(open("/tmp/pi-chat.json")); assert d.get("ok") is True and isinstance(d.get("answer"), str) and d["answer"].strip(); a=d["answer"].lower(); forbidden=("classification:","plan:","i recognized this as an informational question","i will answer directly when the required knowledge is available.","temporarily operating in verified recovery mode"); assert not any(x in a for x in forbidden)'
+            python -c 'import json,sys; d=json.load(open("/tmp/pi-chat.json")); assert d.get("ok") is True and isinstance(d.get("answer"), str) and d["answer"].strip(); a=d["answer"].lower(); forbidden=("classification:","plan:","i recognized this as an informational question","i will answer directly when the required knowledge is available.","temporarily operating in verified recovery mode"); assert not any(x in a for x in forbidden); print("ANSWER_LENGTH", len(d["answer"])); print("ANSWER", d["answer"])'
             answers+=("$(python -c 'import json; print(json.load(open("/tmp/pi-chat.json"))["answer"])')")
+            if [ "$index" -ge 7 ]; then
+              python -c 'import json; a=json.load(open("/tmp/pi-chat.json"))["answer"].strip(); assert len(a)>=160, f"complex answer too short: {len(a)}"'
+            fi
           done
-          test "${#answers[@]}" = 7
+          test "${#answers[@]}" = 11
           for ((i=0; i<${#answers[@]}; i++)); do test -n "${answers[$i]}"; done
+          echo "Complex customer-input stress test passed for $complex_questions multi-part questions."

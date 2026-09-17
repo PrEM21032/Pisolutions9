@@ -34,6 +34,16 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
+      - name: Diagnose deployed edge inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint='https://pi-chat.premchandyadlapati.workers.dev/api/chat'
+          curl --silent --show-error --location --max-time 30 \
+            -H 'content-type: application/json' \
+            -H 'origin: https://pisolutions9.github.io' \
+            -d '{"message":"What is 2 plus 2?"}' "$endpoint" | tee /tmp/pi-edge-debug.json
+          python -c 'import json; d=json.load(open("/tmp/pi-edge-debug.json")); print("edgeFailure:", d.get("edgeFailure", "not-reported")); print("providerFailure:", d.get("providerFailure", "none")); print("source:", d.get("source", "unknown"))'
       - name: Verify Workers AI account inference path
         shell: bash
         env:

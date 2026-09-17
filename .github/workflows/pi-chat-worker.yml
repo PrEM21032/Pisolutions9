@@ -34,6 +34,29 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
+      - name: Configure optional OpenAI fallback
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY
+          echo 'OpenAI fallback secret configured on the production Worker.'
+      - name: Verify provider configuration path
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$OPENAI_API_KEY" ]]; then
+            echo 'Provider path: Cloudflare AI primary + OpenAI fallback configured.'
+          else
+            echo 'Provider path: Cloudflare AI primary; OpenAI fallback not configured.'
+          fi
       - name: Browser CORS preflight smoke test
         shell: bash
         run: |

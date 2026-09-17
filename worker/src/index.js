@@ -3,10 +3,9 @@ import { deterministicFallback } from './deterministic-fallback.mjs';
 const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 500;
-const MAX_RATE_LIMIT_RETRIES = 2;
-// Keep the customer path responsive: a provider that is down must not block all fallbacks.
-const PROVIDER_TIMEOUT_MS = 6500;
-const EDGE_TIMEOUT_MS = 5000;
+const MAX_RATE_LIMIT_RETRIES = 0;
+const PROVIDER_TIMEOUT_MS = 5000;
+const EDGE_TIMEOUT_MS = 4500;
 const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
 const EDGE_ALTERNATIVE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";
@@ -45,12 +44,6 @@ function providerError(response) {
   return { error: 'chat_provider_unavailable', status: 503 };
 }
 
-function retryDelayMs(response, attempt) {
-  const retryAfter = Number(response.headers.get('retry-after'));
-  if (Number.isFinite(retryAfter) && retryAfter >= 0 && retryAfter <= 2) return retryAfter * 1000;
-  return 250 * (2 ** attempt);
-}
-
 function rateLimitHeaders(response) {
   const headers = {};
   for (const name of ['x-ratelimit-limit-requests', 'x-ratelimit-remaining-requests', 'x-ratelimit-reset-requests']) {
@@ -61,26 +54,18 @@ function rateLimitHeaders(response) {
 }
 
 async function callProvider({ apiKey, model, baseUrl, message }) {
-  let lastResponse;
-  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-    try {
-      const response = await fetch(`${baseUrl.replace(/\/$/, '')}/responses`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model, store: false, max_output_tokens: MAX_OUTPUT_TOKENS, instructions: PI_INSTRUCTIONS, input: message }),
-        signal: controller.signal
-      });
-      if (response.ok || response.status !== 429 || attempt === MAX_RATE_LIMIT_RETRIES) return response;
-      lastResponse = response;
-      const delay = retryDelayMs(response, attempt);
-      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
-    } finally {
-      clearTimeout(timer);
-    }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  try {
+    return await fetch(`${baseUrl.replace(/\/$/, '')}/responses`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model, store: false, max_output_tokens: MAX_OUTPUT_TOKENS, instructions: PI_INSTRUCTIONS, input: message }),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
   }
-  return lastResponse;
 }
 
 function extractAnswer(body) {
@@ -109,20 +94,13 @@ async function callWorkersAI(env, message) {
   if (!env.AI || typeof env.AI.run !== 'function') return null;
   const configured = env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL;
   const models = [...new Set([configured, EDGE_ALTERNATIVE_MODEL])];
-  // Run edge candidates concurrently so one unavailable model cannot serially add another timeout.
-  const results = await Promise.allSettled(models.map(async model => {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const result = await runEdgeWithTimeout(env, model, message);
-        const answer = extractEdgeAnswer(result);
-        if (answer) return answer;
-      } catch {
-        // Try this model once more before allowing another candidate to win.
-      }
+  const results = await Promise.allSettled(models.map(model => runEdgeWithTimeout(env, model, message)));
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      const answer = extractEdgeAnswer(result.value);
+      if (answer) return answer;
     }
-    return null;
-  }));
-  for (const result of results) if (result.status === 'fulfilled' && result.value) return result.value;
+  }
   return null;
 }
 
@@ -175,9 +153,7 @@ export default {
     }
 
     const edgeAnswer = await callWorkersAI(env, message);
-    if (edgeAnswer) {
-      return json({ ok: true, answer: edgeAnswer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
-    }
+    if (edgeAnswer) return json({ ok: true, answer: edgeAnswer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
 
     const recovered = recoveryResponse(message, request, lastFailure || { failure: { error: 'edge_model_unavailable', status: 503 }, provider: 'cloudflare-ai' });
     if (recovered) return recovered;

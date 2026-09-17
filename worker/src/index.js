@@ -1,4 +1,5 @@
 // PI V1 release-candidate deployment marker: keep the customer worker deployment tied to this release train.
+// Launch-gate repair: source syntax verified after deployment failure.
 import { deterministicFallback } from './deterministic-fallback.mjs';
 
 const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';

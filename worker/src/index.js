@@ -4,6 +4,8 @@ const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 500;
 const MAX_RATE_LIMIT_RETRIES = 2;
+const PROVIDER_TIMEOUT_MS = 12000;
+const EDGE_TIMEOUT_MS = 8000;
 const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
 const EDGE_ALTERNATIVE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";
@@ -53,21 +55,28 @@ function rateLimitHeaders(response) {
 async function callProvider({ apiKey, model, baseUrl, message }) {
   let lastResponse;
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
-    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/responses`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        store: false,
-        max_output_tokens: MAX_OUTPUT_TOKENS,
-        instructions: PI_INSTRUCTIONS,
-        input: message
-      })
-    });
-    if (response.ok || response.status !== 429 || attempt === MAX_RATE_LIMIT_RETRIES) return response;
-    lastResponse = response;
-    const delay = retryDelayMs(response, attempt);
-    if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+    try {
+      const response = await fetch(`${baseUrl.replace(/\/$/, '')}/responses`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          store: false,
+          max_output_tokens: MAX_OUTPUT_TOKENS,
+          instructions: PI_INSTRUCTIONS,
+          input: message
+        }),
+        signal: controller.signal
+      });
+      if (response.ok || response.status !== 429 || attempt === MAX_RATE_LIMIT_RETRIES) return response;
+      lastResponse = response;
+      const delay = retryDelayMs(response, attempt);
+      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+    } finally {
+      clearTimeout(timer);
+    }
   }
   return lastResponse;
 }
@@ -85,6 +94,18 @@ function extractEdgeAnswer(result) {
   return null;
 }
 
+async function runEdgeWithTimeout(env, model, message) {
+  const work = env.AI.run(model, {
+    messages: [
+      { role: 'system', content: PI_INSTRUCTIONS },
+      { role: 'user', content: message }
+    ],
+    max_tokens: MAX_OUTPUT_TOKENS
+  });
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`edge model timeout: ${model}`)), EDGE_TIMEOUT_MS));
+  return Promise.race([work, timeout]);
+}
+
 async function callWorkersAI(env, message) {
   if (!env.AI || typeof env.AI.run !== 'function') return null;
   const configured = env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL;
@@ -93,13 +114,7 @@ async function callWorkersAI(env, message) {
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const result = await env.AI.run(model, {
-          messages: [
-            { role: 'system', content: PI_INSTRUCTIONS },
-            { role: 'user', content: message }
-          ],
-          max_tokens: MAX_OUTPUT_TOKENS
-        });
+        const result = await runEdgeWithTimeout(env, model, message);
         const answer = extractEdgeAnswer(result);
         if (answer) return answer;
         lastError = new Error(`empty response from ${model}`);

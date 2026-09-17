@@ -32,7 +32,6 @@ jobs:
       - name: Full regression gate
         run: npm test
       - name: Deploy chat worker before live smoke test
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

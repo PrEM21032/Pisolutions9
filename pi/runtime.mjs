@@ -14,6 +14,7 @@ import { createNetra } from './netra.mjs';
 import { verifyLearningAction } from './learning-prevention.mjs';
 import { createV2MissionGraph } from './v2-mission-plan.mjs';
 import { executeV2Graph } from './v2-execution.mjs';
+import { createMissionGuardrails } from './mission-guardrails.mjs';
 
 const defaultState = createStateAdapter({
   save: saveMission,
@@ -32,6 +33,7 @@ export function createRuntime({
   verify = null,
   observer = createObserver(),
   cost = {},
+  guardrails = {},
   deadLetters = createDeadLetterStore(),
   state = defaultState,
   policy = createExecutionPolicy(),
@@ -48,10 +50,14 @@ export function createRuntime({
   if (!Number.isInteger(v2MaxParallel) || v2MaxParallel < 1) throw new Error('invalid_v2_max_parallel');
   const queue = createQueue();
   const guard = createCostGuard(cost);
+  const missionGuard = createMissionGuardrails(guardrails);
   const recovery = createAutonomousRecovery({ repair, alternatives });
   let cycleInFlight = false;
 
   async function submit(objective, context = {}) {
+    const boundary = missionGuard.boundary(objective);
+    observer.emit({ missionId: null, step: 'instruction_boundary', status: boundary.trusted ? 'allowed' : 'blocked', truth: 'verified', message: boundary.reason, findings: boundary.findings });
+    if (!boundary.trusted) throw new Error('untrusted_instruction_boundary');
     const preCheck = netra.inspect(objective, 'pre');
     observer.emit({ missionId: null, step: 'netra_precheck', status: preCheck.allowed ? 'allowed' : 'blocked', truth: 'verified', message: preCheck.severity, findings: preCheck.findings });
     if (!preCheck.allowed) throw new Error(`netra_precheck_blocked:${preCheck.severity}`);
@@ -60,20 +66,26 @@ export function createRuntime({
       const existing = await state.findByIdempotencyKey(key);
       if (existing) return existing;
     }
-    const mission = await state.save(createMission(objective, context));
+    missionGuard.action();
+    const risk = missionGuard.risk(objective);
+    const mission = await state.save(createMission(objective, { ...context, riskLevel: risk }));
     const delegation = createDelegationPlan(mission);
     const delegationCheck = validateDelegation(delegation);
     if (!delegationCheck.ok) throw new Error('delegation_validation_failed');
     const missionGraph = createV2MissionGraph(mission, { maxParallel: v2MaxParallel });
-    const enriched = { ...mission, delegation, missionGraph };
+    const enriched = { ...mission, delegation, missionGraph, guardrails: missionGuard.snapshot() };
     await state.save(enriched);
     queue.enqueue(enriched);
-    observer.emit({ missionId: mission.id, step: 'submit', status: 'planned', truth: 'verified', message: 'mission_queued', missionGraph: { maxParallel: missionGraph.maxParallel, stepCount: missionGraph.steps.length } });
+    observer.emit({ missionId: mission.id, step: 'submit', status: 'planned', truth: 'verified', message: 'mission_queued', riskLevel: risk, missionGraph: { maxParallel: missionGraph.maxParallel, stepCount: missionGraph.steps.length } });
     return enriched;
   }
 
   async function executeMission(mission) {
     try {
+      missionGuard.action();
+      if (mission.riskLevel === 'L3') throw new Error('human_approval_required_for_high_impact_action');
+      const boundary = missionGuard.boundary(mission.objective);
+      if (!boundary.trusted) throw new Error('untrusted_instruction_boundary');
       if (executeSpecialist) {
         const v2 = await executeV2Graph(mission.missionGraph, {
           executeSpecialist,
@@ -137,27 +149,30 @@ export function createRuntime({
         observer.emit({ missionId: mission.id, step: 'netra_finalcheck', status: finalCheck.allowed ? 'allowed' : 'blocked', truth: 'verified', message: finalCheck.severity, findings: finalCheck.findings });
         if (!finalCheck.allowed) throw new Error(`netra_finalcheck_blocked:${finalCheck.severity}`);
         const outcome = safeOutcome(mission, checked);
-        mission = await state.save({ ...mission, status: outcome.status, result: outcome });
-        observer.emit({ missionId: mission.id, step: 'verify', status: outcome.status, truth: outcome.truth?.verified?.length ? 'verified' : 'probable', durationMs: Date.now() - started, message: 'cycle_verified' });
+        mission = await state.save({ ...mission, status: outcome.status, result: outcome, guardrails: missionGuard.snapshot() });
+        observer.emit({ missionId: mission.id, step: 'verify', status: outcome.status, truth: outcome.truth?.verified?.length ? 'verified' : 'probable', durationMs: Date.now() - started, message: 'cycle_verified', guardrails: missionGuard.snapshot() });
         return outcome;
       } catch (error) {
         let learningError = null;
         try { await recordLearning(mission, error); } catch (learnError) { learningError = learnError; }
         const blocker = classifyBlocker(error);
-        const humanGate = !blocker.safeToReroute || Boolean(learningError);
+        const humanGate = !blocker.safeToReroute || Boolean(learningError) || String(error?.message || '').includes('human_approval_required');
         mission = humanGate
           ? await state.save({ ...mission, status: 'blocked' })
           : markFailure(mission, error);
         const nextAction = humanGate ? 'owner_required' : null;
-        if (mission.status === 'retrying') queue.enqueue(mission);
-        else if (mission.status === 'blocked') deadLetters.add(mission, error);
+        if (mission.status === 'retrying') {
+          missionGuard.retry();
+          queue.enqueue(mission);
+        } else if (mission.status === 'blocked') deadLetters.add(mission, error);
         observer.emit({
           missionId: mission.id,
           step: 'recovery',
           status: mission.status,
           truth: 'unknown',
           durationMs: Date.now() - started,
-          message: humanGate ? `owner_required:${blocker.reason}` : blocker.reason
+          message: humanGate ? `owner_required:${blocker.reason}` : blocker.reason,
+          guardrails: missionGuard.snapshot()
         });
         return safeOutcome(mission, {
           status: mission.status,
@@ -185,5 +200,5 @@ export function createRuntime({
     };
   }
 
-  return { submit, cycle, runCycles, queue, cost: guard, deadLetters, policy, state, netra, recovery };
+  return { submit, cycle, runCycles, queue, cost: guard, guardrails: missionGuard, deadLetters, policy, state, netra, recovery };
 }

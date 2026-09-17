@@ -8,7 +8,7 @@ import { createCostGuard } from './cost-guard.mjs';
 import { createDeadLetterStore } from './dead-letter.mjs';
 import { createDelegationPlan, validateDelegation } from './delegation.mjs';
 import { createExecutionPolicy } from './policy.mjs';
-import { classifyBlocker, createAlternativePlan, runAlternativePlan } from './blocker-router.mjs';
+import { createAutonomousRecovery } from './autonomous-recovery.mjs';
 import { createNetra } from './netra.mjs';
 import { verifyLearningAction } from './learning-prevention.mjs';
 import { createV2MissionGraph } from './v2-mission-plan.mjs';
@@ -27,6 +27,7 @@ export function createRuntime({
   executeSpecialist = null,
   verifySpecialist = null,
   alternatives = [],
+  repair = null,
   verify = null,
   observer = createObserver(),
   cost = {},
@@ -40,11 +41,13 @@ export function createRuntime({
   if (!state || typeof state.save !== 'function' || typeof state.load !== 'function') throw new Error('invalid_state_adapter');
   if (!netra || typeof netra.inspect !== 'function') throw new Error('invalid_netra');
   if (learn !== null && typeof learn !== 'function') throw new Error('invalid_learning_hook');
+  if (repair !== null && typeof repair !== 'function') throw new Error('invalid_repair_hook');
   if (executeSpecialist !== null && typeof executeSpecialist !== 'function') throw new Error('invalid_v2_specialist_executor');
   if (verifySpecialist !== null && typeof verifySpecialist !== 'function') throw new Error('invalid_v2_verifier');
   if (!Number.isInteger(v2MaxParallel) || v2MaxParallel < 1) throw new Error('invalid_v2_max_parallel');
   const queue = createQueue();
   const guard = createCostGuard(cost);
+  const recovery = createAutonomousRecovery({ repair, alternatives });
   let cycleInFlight = false;
 
   async function submit(objective, context = {}) {
@@ -87,19 +90,12 @@ export function createRuntime({
       }
       return await execute(mission, { cost: guard, policy });
     } catch (error) {
-      const plan = createAlternativePlan({ blocker: error, alternatives });
-      observer.emit({
-        missionId: mission.id,
-        step: 'recovery',
-        status: plan.ownerRequired ? 'blocked' : 'rerouting',
-        truth: 'unknown',
-        message: plan.ownerRequired ? 'no_safe_fallback' : 'primary_failed_fallback_started'
-      });
-      if (plan.ownerRequired) throw error;
-      const fallback = await runAlternativePlan(plan, option => option.execute(mission, { cost: guard, policy }));
-      if (fallback.status !== 'completed') throw error;
-      observer.emit({ missionId: mission.id, step: 'recovery', status: 'completed', truth: 'probable', message: `fallback_selected:${fallback.selected}` });
-      return fallback.attempts.at(-1).result;
+      const recoveryResult = await recovery.recover({ mission, error, context: { cost: guard, policy } });
+      for (const event of recoveryResult.trace || []) {
+        observer.emit({ missionId: mission.id, step: `recovery_${event.phase}`, status: event.action || event.status || 'observed', truth: 'unknown', message: event.reason || event.action || 'recovery_step' });
+      }
+      if (recoveryResult.status === 'completed') return recoveryResult.result;
+      throw error;
     }
   }
 
@@ -188,5 +184,5 @@ export function createRuntime({
     };
   }
 
-  return { submit, cycle, runCycles, queue, cost: guard, deadLetters, policy, state, netra };
+  return { submit, cycle, runCycles, queue, cost: guard, deadLetters, policy, state, netra, recovery };
 }

@@ -5,6 +5,7 @@ const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 500;
 const MAX_RATE_LIMIT_RETRIES = 2;
 const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
+const EDGE_ALTERNATIVE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";
 
 function corsHeaders(origin) {
@@ -75,17 +76,39 @@ function extractAnswer(body) {
   return body?.output_text?.trim() || body?.output?.flatMap(item => item?.content || []).find(part => part?.type === 'output_text')?.text?.trim();
 }
 
+function extractEdgeAnswer(result) {
+  if (typeof result === 'string') return result.trim() || null;
+  const direct = result?.response?.trim?.() || result?.output_text?.trim?.() || result?.choices?.[0]?.message?.content?.trim?.();
+  if (direct) return direct;
+  const content = result?.choices?.[0]?.message?.content;
+  if (Array.isArray(content)) return content.map(part => part?.text || part?.content || '').join('').trim() || null;
+  return null;
+}
+
 async function callWorkersAI(env, message) {
   if (!env.AI || typeof env.AI.run !== 'function') return null;
-  const result = await env.AI.run(env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL, {
-    messages: [
-      { role: 'system', content: PI_INSTRUCTIONS },
-      { role: 'user', content: message }
-    ],
-    max_tokens: MAX_OUTPUT_TOKENS
-  });
-  if (typeof result === 'string') return result.trim() || null;
-  return result?.response?.trim?.() || result?.output_text?.trim?.() || result?.choices?.[0]?.message?.content?.trim?.() || null;
+  const configured = env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL;
+  const models = [...new Set([configured, EDGE_ALTERNATIVE_MODEL])];
+  let lastError = null;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const result = await env.AI.run(model, {
+          messages: [
+            { role: 'system', content: PI_INSTRUCTIONS },
+            { role: 'user', content: message }
+          ],
+          max_tokens: MAX_OUTPUT_TOKENS
+        });
+        const answer = extractEdgeAnswer(result);
+        if (answer) return answer;
+        lastError = new Error(`empty response from ${model}`);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+  throw lastError || new Error('edge model unavailable');
 }
 
 function recoveryResponse(message, request, failure) {
@@ -138,8 +161,7 @@ export default {
 
     try {
       const answer = await callWorkersAI(env, message);
-      if (answer) return json({ ok: true, answer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
-      lastFailure = { failure: { error: 'edge_model_empty_response', status: 502 }, provider: 'cloudflare-ai' };
+      return json({ ok: true, answer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
     } catch {
       lastFailure = { failure: { error: 'edge_model_unavailable', status: 503 }, provider: 'cloudflare-ai' };
     }

@@ -39,5 +39,6 @@ export function deterministicFallback(message) {
     return 'I can help turn an objective into a plan, research information, reason through options, and coordinate PI’s available tools and specialists.';
   }
 
-  return null;
+  // Safe last-resort response: never turn provider failure into a false claim.
+  return 'PI is temporarily operating in verified recovery mode. The live model provider is unavailable, so I will not invent an answer. Please retry once the provider connection is restored.';
 }

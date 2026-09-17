@@ -18,6 +18,7 @@ function corsHeaders(origin) {
     ...(origin === ALLOWED_ORIGIN ? { 'access-control-allow-origin': ALLOWED_ORIGIN } : {}),
     'access-control-allow-methods': 'POST,OPTIONS',
     'access-control-allow-headers': 'content-type',
+    'access-control-max-age': '600',
     vary: 'Origin'
   };
 }
@@ -25,6 +26,12 @@ function corsHeaders(origin) {
 function json(body, status, request, extraHeaders = {}) {
   const origin = request.headers.get('Origin') || '';
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders(origin), ...extraHeaders } });
+}
+
+function preflight(request) {
+  const origin = request.headers.get('Origin') || '';
+  if (origin && origin !== ALLOWED_ORIGIN) return json({ ok: false, error: 'origin_not_allowed' }, 403, request);
+  return new Response(null, { status: 204, headers: corsHeaders(origin) });
 }
 
 function providerError(response) {
@@ -139,7 +146,7 @@ export default {
     const origin = request.headers.get('Origin') || '';
     if (url.pathname !== '/api/chat') return new Response('Not found', { status: 404 });
     if (origin && origin !== ALLOWED_ORIGIN) return json({ ok: false, error: 'origin_not_allowed' }, 403, request);
-    if (request.method === 'OPTIONS') return json({ ok: true }, 204, request);
+    if (request.method === 'OPTIONS') return preflight(request);
     if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405, request);
 
     let payload;

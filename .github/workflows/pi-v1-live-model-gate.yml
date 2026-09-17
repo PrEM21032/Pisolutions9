@@ -36,11 +36,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          response=$(curl --silent --show-error --fail-with-body --max-time 20 \
-            -H 'content-type: application/json' \
-            -H 'origin: https://pisolutions9.github.io' \
-            -d '{"message":"Explain in clear terms what PI V1 does and how it verifies answers."}' \
-            "$PI_CHAT_URL")
+          response=$(curl --silent --show-error --fail-with-body --max-time 20             -H 'content-type: application/json'             -H 'origin: https://prem21032.github.io'             -d '{"message":"Explain in clear terms what PI V1 does and how it verifies answers."}'             "$PI_CHAT_URL")
           echo "$response"
           python - <<'PY' "$response" "$GITHUB_SHA"
           import json, sys
@@ -55,7 +51,7 @@ jobs:
           if source == 'pi-chat-deterministic-recovery':
               raise SystemExit('live gate failed: deterministic recovery is not live-model success')
           if body.get('truth') != 'model-response':
-              raise SystemExit(f'live gate failed: unexpected truth={body.get("truth")}')
+              raise SystemExit(f'unexpected truth={body.get("truth")}')
           print(f'LIVE_MODEL_PASS sha={sha} source={source} answer_chars={len(answer)}')
           PY
 

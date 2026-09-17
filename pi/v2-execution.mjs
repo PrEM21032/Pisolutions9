@@ -3,12 +3,12 @@ import { validateSpecialistInput, validateSpecialistResult } from './specialist-
 
 export async function executeV2Graph(graph, {
   executeSpecialist,
-  verifySpecialist = async result => result,
+  verifySpecialist,
   context = {},
   constraints = {}
 } = {}) {
   if (typeof executeSpecialist !== 'function') throw new Error('v2_specialist_executor_required');
-  if (typeof verifySpecialist !== 'function') throw new Error('v2_verifier_required');
+  if (typeof verifySpecialist !== 'function') throw new Error('v2_independent_verifier_required');
 
   let current = structuredClone(graph);
   const results = [];

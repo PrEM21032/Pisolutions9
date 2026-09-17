@@ -4,8 +4,9 @@ const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 500;
 const MAX_RATE_LIMIT_RETRIES = 2;
-const PROVIDER_TIMEOUT_MS = 12000;
-const EDGE_TIMEOUT_MS = 8000;
+// Keep the customer path responsive: a provider that is down must not block all fallbacks.
+const PROVIDER_TIMEOUT_MS = 6500;
+const EDGE_TIMEOUT_MS = 5000;
 const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
 const EDGE_ALTERNATIVE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";
@@ -68,13 +69,7 @@ async function callProvider({ apiKey, model, baseUrl, message }) {
       const response = await fetch(`${baseUrl.replace(/\/$/, '')}/responses`, {
         method: 'POST',
         headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          store: false,
-          max_output_tokens: MAX_OUTPUT_TOKENS,
-          instructions: PI_INSTRUCTIONS,
-          input: message
-        }),
+        body: JSON.stringify({ model, store: false, max_output_tokens: MAX_OUTPUT_TOKENS, instructions: PI_INSTRUCTIONS, input: message }),
         signal: controller.signal
       });
       if (response.ok || response.status !== 429 || attempt === MAX_RATE_LIMIT_RETRIES) return response;
@@ -103,10 +98,7 @@ function extractEdgeAnswer(result) {
 
 async function runEdgeWithTimeout(env, model, message) {
   const work = env.AI.run(model, {
-    messages: [
-      { role: 'system', content: PI_INSTRUCTIONS },
-      { role: 'user', content: message }
-    ],
+    messages: [{ role: 'system', content: PI_INSTRUCTIONS }, { role: 'user', content: message }],
     max_tokens: MAX_OUTPUT_TOKENS
   });
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`edge model timeout: ${model}`)), EDGE_TIMEOUT_MS));
@@ -117,20 +109,21 @@ async function callWorkersAI(env, message) {
   if (!env.AI || typeof env.AI.run !== 'function') return null;
   const configured = env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL;
   const models = [...new Set([configured, EDGE_ALTERNATIVE_MODEL])];
-  let lastError = null;
-  for (const model of models) {
+  // Run edge candidates concurrently so one unavailable model cannot serially add another timeout.
+  const results = await Promise.allSettled(models.map(async model => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const result = await runEdgeWithTimeout(env, model, message);
         const answer = extractEdgeAnswer(result);
         if (answer) return answer;
-        lastError = new Error(`empty response from ${model}`);
-      } catch (error) {
-        lastError = error;
+      } catch {
+        // Try this model once more before allowing another candidate to win.
       }
     }
-  }
-  throw lastError || new Error('edge model unavailable');
+    return null;
+  }));
+  for (const result of results) if (result.status === 'fulfilled' && result.value) return result.value;
+  return null;
 }
 
 function recoveryResponse(message, request, failure) {
@@ -181,14 +174,12 @@ export default {
       }
     }
 
-    try {
-      const answer = await callWorkersAI(env, message);
-      return json({ ok: true, answer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
-    } catch {
-      lastFailure = { failure: { error: 'edge_model_unavailable', status: 503 }, provider: 'cloudflare-ai' };
+    const edgeAnswer = await callWorkersAI(env, message);
+    if (edgeAnswer) {
+      return json({ ok: true, answer: edgeAnswer, source: 'pi-chat-cloudflare-ai', truth: 'model-response', recoveredFrom: lastFailure?.failure?.error || null }, 200, request);
     }
 
-    const recovered = recoveryResponse(message, request, lastFailure);
+    const recovered = recoveryResponse(message, request, lastFailure || { failure: { error: 'edge_model_unavailable', status: 503 }, provider: 'cloudflare-ai' });
     if (recovered) return recovered;
 
     const failure = lastFailure?.failure || { error: 'chat_provider_unavailable', status: 503 };

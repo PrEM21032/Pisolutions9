@@ -1,0 +1,27 @@
+name: PI V2 Release Gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v2-release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PI
+        uses: actions/checkout@v5
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run full V1 + V2 release suite
+        run: npm test
+      - name: Confirm V2 release gate
+        run: node pi/v2-release-gate-test.mjs

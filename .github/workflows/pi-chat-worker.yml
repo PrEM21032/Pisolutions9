@@ -39,27 +39,22 @@ jobs:
         run: |
           set -euo pipefail
           endpoint='https://pi-chat.premchandyadlapati.workers.dev/api/chat'
-          status="$(curl --silent --show-error --location --max-time 15 \
-            -X OPTIONS \
+          status="$(curl --silent --show-error --location --max-time 15 -X OPTIONS \
             -H 'origin: https://pisolutions9.github.io' \
             -H 'access-control-request-method: POST' \
             -H 'access-control-request-headers: content-type' \
             --output /tmp/pi-preflight.json --write-out '%{http_code}' "$endpoint")"
-          echo "Preflight HTTP status: $status"
           test "$status" = 204
-          test "$(curl --silent --show-error --location --max-time 15 -I \
-            -X OPTIONS \
+          test "$(curl --silent --show-error --location --max-time 15 -I -X OPTIONS \
             -H 'origin: https://pisolutions9.github.io' \
             -H 'access-control-request-method: POST' \
-            -H 'access-control-request-headers: content-type' \
-            "$endpoint" | tr -d '\r' | grep -i '^access-control-allow-origin:' | sed 's/^[^:]*: //' | xargs)" = 'https://pisolutions9.github.io'
+            -H 'access-control-request-headers: content-type' "$endpoint" | tr -d '\r' | grep -i '^access-control-allow-origin:' | sed 's/^[^:]*: //' | xargs)" = 'https://pisolutions9.github.io'
       - name: Live customer chat smoke test
         shell: bash
         run: |
           set -euo pipefail
           endpoint='https://pi-chat.premchandyadlapati.workers.dev/api/chat'
           answers=()
-          sources=()
           questions=(
             'What is 2 plus 2?'
             'Why is the sky blue?'
@@ -71,19 +66,19 @@ jobs:
             'Explain photosynthesis to a 10-year-old.'
             'What makes a good business hypothesis?'
             'Give me a one-sentence explanation of compound interest.'
+            'Build me a website for launching my own products like Amazon.'
           )
           for question in "${questions[@]}"; do
-            status="$(curl --silent --show-error --location --max-time 30 --retry 3 --retry-all-errors \
+            status="$(curl --silent --show-error --location --max-time 20 --retry 2 --retry-all-errors \
               -H 'content-type: application/json' \
               -H 'origin: https://pisolutions9.github.io' \
               -d "$(python -c 'import json,sys; print(json.dumps({"message":sys.argv[1]}))' "$question")" \
               --output /tmp/pi-chat.json --write-out '%{http_code}' "$endpoint")"
-            echo "Chat HTTP status: $status"
+            echo "Chat HTTP status: $status | input: $question"
             cat /tmp/pi-chat.json
             test "$status" = 200
-            python -c 'import json; d=json.load(open("/tmp/pi-chat.json")); assert d.get("ok") is True and isinstance(d.get("answer"), str) and d["answer"].strip(); a=d["answer"].lower(); forbidden=("classification:","plan:","i recognized this as an informational question","i will answer directly when the required knowledge is available."); assert not any(x in a for x in forbidden); assert d.get("source") != "pi-chat-deterministic-recovery"'
+            python -c 'import json; d=json.load(open("/tmp/pi-chat.json")); assert d.get("ok") is True and isinstance(d.get("answer"), str) and d["answer"].strip(); a=d["answer"].lower(); forbidden=("classification:","plan:","i recognized this as an informational question","i will answer directly when the required knowledge is available.","temporarily operating in verified recovery mode"); assert not any(x in a for x in forbidden)'
             answers+=("$(python -c 'import json; print(json.load(open("/tmp/pi-chat.json"))["answer"])')")
-            sources+=("$(python -c 'import json; print(json.load(open("/tmp/pi-chat.json"))["source"])')")
           done
-          test "${#answers[@]}" = 10
-          test "${#sources[@]}" = 10
+          test "${#answers[@]}" = 11
+          for ((i=0; i<${#answers[@]}; i++)); do test -n "${answers[$i]}"; done

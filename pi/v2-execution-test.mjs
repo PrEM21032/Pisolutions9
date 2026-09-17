@@ -44,7 +44,7 @@ assert.ok(calls.includes('data-finance'));
 
 await assert.rejects(() => executeV2Graph(graph, {
   executeSpecialist: async () => ({ result: 'bad', evidence: [], truthLevel: 'invalid', failureClass: 'unknown' })
-}), /truthLevel/);
+}), /v2_independent_verifier_required/);
 
 await assert.rejects(() => executeV2Graph(graph, {
   executeSpecialist: async () => ({ result: 'bad', evidence: [{ source: 'fixture', claim: 'bad' }], truthLevel: 'verified', failureClass: 'unknown' }),

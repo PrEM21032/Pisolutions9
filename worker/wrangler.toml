@@ -4,8 +4,8 @@ compatibility_date = "2026-09-16"
 
 [vars]
 PI_CHAT_MODEL = "gpt-5.6-luna"
-# Use a documented low-resource model while the V1 live-model path is resource constrained.
-PI_EDGE_MODEL = "@cf/meta/llama-3.2-1b-instruct"
+# Use an active documented fast Workers AI model for the V1 live-model primary path.
+PI_EDGE_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast"
 
 [ai]
 binding = "AI"

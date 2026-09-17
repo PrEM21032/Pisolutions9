@@ -1,0 +1,63 @@
+name: PI V1 Live Model Gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-v1-live-model-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PI_CHAT_URL: https://pi-chat.premchandyadlapati.workers.dev/api/chat
+
+jobs:
+  live-model-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact release candidate
+        uses: actions/checkout@v5
+
+      - name: Deploy exact release candidate worker
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install --no-save --no-package-lock wrangler@4
+          npx wrangler deploy
+
+      - name: Require genuine live model-backed customer response
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --silent --show-error --fail-with-body --max-time 20 \
+            -H 'content-type: application/json' \
+            -H 'origin: https://pisolutions9.github.io' \
+            -d '{"message":"Explain in clear terms what PI V1 does and how it verifies answers."}' \
+            "$PI_CHAT_URL")
+          echo "$response"
+          python - <<'PY' "$response" "$GITHUB_SHA"
+          import json, sys
+          body=json.loads(sys.argv[1])
+          sha=sys.argv[2]
+          if body.get('ok') is not True:
+              raise SystemExit(f'live gate failed: ok={body.get("ok")}')
+          answer=body.get('answer')
+          source=body.get('source','')
+          if not isinstance(answer,str) or len(answer.strip()) < 120:
+              raise SystemExit('live gate failed: missing/short model answer')
+          if source == 'pi-chat-deterministic-recovery':
+              raise SystemExit('live gate failed: deterministic recovery is not live-model success')
+          if body.get('truth') != 'model-response':
+              raise SystemExit(f'live gate failed: unexpected truth={body.get("truth")}')
+          print(f'LIVE_MODEL_PASS sha={sha} source={source} answer_chars={len(answer)}')
+          PY
+
+      - name: Verify V1 regression and V2 release gates
+        run: npm test

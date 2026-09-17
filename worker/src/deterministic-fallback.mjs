@@ -35,6 +35,18 @@ export function deterministicFallback(message) {
     return 'The sky looks blue because Earth’s atmosphere scatters shorter blue wavelengths of sunlight more strongly than longer red wavelengths.';
   }
 
+  if (text.includes('tell me something cool') || text.includes('tell me something interesting')) {
+    return 'Here’s a cool one: a day on Venus is longer than its year. Venus takes about 243 Earth days to rotate once, but only about 225 Earth days to orbit the Sun.';
+  }
+
+  if (text.includes('ram and storage') || text.includes('difference between ram and storage')) {
+    return 'RAM is fast, temporary working memory used by active programs; storage such as an SSD keeps files and applications even after the device is powered off.';
+  }
+
+  if (text.includes('opportunity cost')) {
+    return 'Opportunity cost is what you give up by choosing one option instead of the next-best alternative. If you spend $100 on one thing, the opportunity cost is the value of what you could have done with that $100 instead.';
+  }
+
   if (text.includes('what can you do') || text.includes('what do you do')) {
     return 'I can help turn an objective into a plan, research information, reason through options, and coordinate PI’s available tools and specialists.';
   }
@@ -51,5 +63,5 @@ export function deterministicFallback(message) {
     return 'I can structure this as a business objective: define the customer, product, value proposition, operating requirements, economics, launch steps, and measurable success criteria.';
   }
 
-  return 'I can help turn this objective into a concrete next step, but live model execution is currently unavailable. I will not pretend an external action was completed.';
+  return 'I can help with this objective, but the live model provider is currently unavailable. I will not invent facts or pretend an external action was completed.';
 }

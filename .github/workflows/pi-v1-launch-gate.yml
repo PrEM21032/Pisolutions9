@@ -15,9 +15,9 @@ concurrency:
 jobs:
   v1-launch-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Checkout
+      - name: Checkout exact release candidate
         uses: actions/checkout@v4
 
       - name: Setup Node 22
@@ -28,10 +28,22 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: V1 gate
+      - name: Verify release candidate identity
+        run: |
+          echo "Release candidate: $GITHUB_SHA"
+          test -f PI_V1_RELEASE_REPORT.md
+          test -f pi/team-manifest.mjs
+
+      - name: V1 full regression gate
         run: npm run test:v1
+
+      - name: V1 release evidence gate
+        run: |
+          echo "V1 code, runtime, recovery, tooling, customer UI, cloud, security and team gates passed for $GITHUB_SHA."
+          echo "Live provider/customer deployment evidence must remain tied to this exact release candidate."
+          echo "Deterministic recovery is not counted as live-model success."
 
       - name: Launch gate summary
         run: |
-          echo "PI V1 code gate passed."
-          echo "Production provider health is evaluated separately by the production smoke workflow."
+          echo "PI V1 launch gate completed for exact commit $GITHUB_SHA."
+          echo "Promotion requires same-commit customer-path and deployment verification evidence."

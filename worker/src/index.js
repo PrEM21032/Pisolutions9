@@ -5,7 +5,9 @@ import { deterministicFallback } from './deterministic-fallback.mjs';
 const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 256;
-const PROVIDER_TIMEOUT_MS = 5000;
+// The prior 5s provider deadline was close to the observed live p95/max boundary.
+// Give transient provider/network work a little more room while keeping the Worker bounded.
+const PROVIDER_TIMEOUT_MS = 8000;
 const EDGE_TIMEOUT_MS = 12000;
 const DEFAULT_EDGE_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5'];

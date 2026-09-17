@@ -32,9 +32,7 @@ export function classifyMissionRisk(objective = '') {
 
 export function inspectInstructionBoundary(text = '') {
   const value = String(text);
-  const findings = INJECTION_PATTERNS
-    .filter(pattern => pattern.test(value))
-    .map(pattern => pattern.source);
+  const findings = INJECTION_PATTERNS.filter(pattern => pattern.test(value)).map(pattern => pattern.source);
   return {
     trusted: findings.length === 0,
     findings,
@@ -47,11 +45,20 @@ export function createMissionGuardrails({ limits = {}, clock = () => Date.now() 
   for (const [name, value] of Object.entries(effective)) {
     if (!Number.isFinite(value) || value < 0) throw new Error(`invalid_guardrail_${name}`);
   }
-  const startedAt = clock();
+  let startedAt = clock();
   let actions = 0;
   let modelCalls = 0;
   let toolCalls = 0;
   let retries = 0;
+
+  function beginMission() {
+    startedAt = clock();
+    actions = 0;
+    modelCalls = 0;
+    toolCalls = 0;
+    retries = 0;
+    return snapshot();
+  }
 
   function snapshot() {
     return {
@@ -87,6 +94,7 @@ export function createMissionGuardrails({ limits = {}, clock = () => Date.now() 
 
   return {
     limits: effective,
+    beginMission,
     risk(objective) { return classifyMissionRisk(objective); },
     boundary(text) { return inspectInstructionBoundary(text); },
     action() { return checkBudget('action'); },

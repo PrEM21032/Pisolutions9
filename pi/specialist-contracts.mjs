@@ -42,6 +42,7 @@ export function validateSpecialistResult(name, result) {
   }
   if (typeof result.result !== 'string') throw new Error(`${name} result.result is required`);
   if (!Array.isArray(result.evidence)) throw new Error(`${name} result.evidence must be an array`);
+  if (result.truthLevel === 'verified' && result.evidence.length === 0) throw new Error(`${name} verified result requires evidence`);
   if (!contract.truthLevels.includes(result.truthLevel)) throw new Error(`${name} result has invalid truthLevel`);
   if (!contract.failureClasses.includes(result.failureClass)) throw new Error(`${name} result has invalid failureClass`);
   if (contract.canBypassOwnerGate !== false) throw new Error(`${name} contract cannot bypass owner gate`);

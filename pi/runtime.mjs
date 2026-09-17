@@ -16,31 +16,9 @@ import { createV2MissionGraph } from './v2-mission-plan.mjs';
 import { executeV2Graph } from './v2-execution.mjs';
 import { createMissionGuardrails } from './mission-guardrails.mjs';
 
-const defaultState = createStateAdapter({
-  save: saveMission,
-  load: loadMission,
-  findByIdempotencyKey: findMissionByIdempotencyKey,
-  list: listMissions,
-  clear: clearState
-});
+const defaultState = createStateAdapter({ save: saveMission, load: loadMission, findByIdempotencyKey: findMissionByIdempotencyKey, list: listMissions, clear: clearState });
 
-export function createRuntime({
-  execute = async () => ({ completed: [], evidence: [], status: 'blocked' }),
-  executeSpecialist = null,
-  verifySpecialist = null,
-  alternatives = [],
-  repair = null,
-  verify = null,
-  observer = createObserver(),
-  cost = {},
-  guardrails = {},
-  deadLetters = createDeadLetterStore(),
-  state = defaultState,
-  policy = createExecutionPolicy(),
-  netra = createNetra(),
-  learn = null,
-  v2MaxParallel = 2
-} = {}) {
+export function createRuntime({ execute = async () => ({ completed: [], evidence: [], status: 'blocked' }), executeSpecialist = null, verifySpecialist = null, alternatives = [], repair = null, verify = null, observer = createObserver(), cost = {}, guardrails = {}, deadLetters = createDeadLetterStore(), state = defaultState, policy = createExecutionPolicy(), netra = createNetra(), learn = null, v2MaxParallel = 2 } = {}) {
   if (!state || typeof state.save !== 'function' || typeof state.load !== 'function') throw new Error('invalid_state_adapter');
   if (!netra || typeof netra.inspect !== 'function') throw new Error('invalid_netra');
   if (learn !== null && typeof learn !== 'function') throw new Error('invalid_learning_hook');
@@ -66,14 +44,13 @@ export function createRuntime({
       const existing = await state.findByIdempotencyKey(key);
       if (existing) return existing;
     }
-    missionGuard.action();
     const risk = missionGuard.risk(objective);
     const mission = await state.save(createMission(objective, { ...context, riskLevel: risk }));
     const delegation = createDelegationPlan(mission);
     const delegationCheck = validateDelegation(delegation);
     if (!delegationCheck.ok) throw new Error('delegation_validation_failed');
     const missionGraph = createV2MissionGraph(mission, { maxParallel: v2MaxParallel });
-    const enriched = { ...mission, delegation, missionGraph, guardrails: missionGuard.snapshot() };
+    const enriched = { ...mission, delegation, missionGraph, guardrails: missionGuard.limits, riskLevel: risk };
     await state.save(enriched);
     queue.enqueue(enriched);
     observer.emit({ missionId: mission.id, step: 'submit', status: 'planned', truth: 'verified', message: 'mission_queued', riskLevel: risk, missionGraph: { maxParallel: missionGraph.maxParallel, stepCount: missionGraph.steps.length } });
@@ -83,30 +60,17 @@ export function createRuntime({
   async function executeMission(mission) {
     try {
       missionGuard.action();
-      if (mission.riskLevel === 'L3') throw new Error('human_approval_required_for_high_impact_action');
+      if (mission.riskLevel === 'L3' && mission.context?.humanApproved !== true) throw new Error('human_approval_required_for_high_impact_action');
       const boundary = missionGuard.boundary(mission.objective);
       if (!boundary.trusted) throw new Error('untrusted_instruction_boundary');
       if (executeSpecialist) {
-        const v2 = await executeV2Graph(mission.missionGraph, {
-          executeSpecialist,
-          verifySpecialist: verifySpecialist || undefined,
-          context: mission.context,
-          constraints: mission.context?.constraints || {}
-        });
-        return {
-          status: v2.status,
-          completed: v2.completed,
-          evidence: v2.results.flatMap(item => item.result.evidence),
-          v2Graph: v2.graph,
-          specialistResults: v2.results.map(item => ({ specialist: item.step.specialist, result: item.result }))
-        };
+        const v2 = await executeV2Graph(mission.missionGraph, { executeSpecialist, verifySpecialist: verifySpecialist || undefined, context: mission.context, constraints: mission.context?.constraints || {} });
+        return { status: v2.status, completed: v2.completed, evidence: v2.results.flatMap(item => item.result.evidence), v2Graph: v2.graph, specialistResults: v2.results.map(item => ({ specialist: item.step.specialist, result: item.result })) };
       }
       return await execute(mission, { cost: guard, policy });
     } catch (error) {
       const recoveryResult = await recovery.recover({ mission, error, context: { cost: guard, policy } });
-      for (const event of recoveryResult.trace || []) {
-        observer.emit({ missionId: mission.id, step: `recovery_${event.phase}`, status: event.action || event.status || 'observed', truth: 'unknown', message: event.reason || event.action || 'recovery_step' });
-      }
+      for (const event of recoveryResult.trace || []) observer.emit({ missionId: mission.id, step: `recovery_${event.phase}`, status: event.action || event.status || 'observed', truth: 'unknown', message: event.reason || event.action || 'recovery_step' });
       if (recoveryResult.status === 'completed') return recoveryResult.result;
       throw error;
     }
@@ -132,15 +96,14 @@ export function createRuntime({
       const queued = queue.next();
       if (!queued) return { status: 'idle' };
       let mission = await state.load(queued.mission.id) || queued.mission;
+      missionGuard.beginMission();
       const started = Date.now();
-      observer.emit({ missionId: mission.id, step: 'cycle', status: 'running', truth: 'unknown', message: 'cycle_started' });
+      observer.emit({ missionId: mission.id, step: 'cycle', status: 'running', truth: 'unknown', message: 'cycle_started', riskLevel: mission.riskLevel, guardrails: missionGuard.snapshot() });
       try {
         mission = await state.save({ ...mission, status: 'running' });
         guard.action();
         const result = await executeMission(mission);
-        if (result.v2Graph) {
-          mission = await state.save({ ...mission, missionGraph: result.v2Graph });
-        }
+        if (result.v2Graph) mission = await state.save({ ...mission, missionGraph: result.v2Graph });
         const gate = verifyOutcome(result);
         if (!gate.ok) throw new Error('verification_failed');
         if (result.status === 'completed' && (!Array.isArray(result.evidence) || result.evidence.length === 0)) throw new Error('evidence_required_for_completed');
@@ -157,28 +120,14 @@ export function createRuntime({
         try { await recordLearning(mission, error); } catch (learnError) { learningError = learnError; }
         const blocker = classifyBlocker(error);
         const humanGate = !blocker.safeToReroute || Boolean(learningError) || String(error?.message || '').includes('human_approval_required');
-        mission = humanGate
-          ? await state.save({ ...mission, status: 'blocked' })
-          : markFailure(mission, error);
+        mission = humanGate ? await state.save({ ...mission, status: 'blocked' }) : markFailure(mission, error);
         const nextAction = humanGate ? 'owner_required' : null;
         if (mission.status === 'retrying') {
           missionGuard.retry();
           queue.enqueue(mission);
         } else if (mission.status === 'blocked') deadLetters.add(mission, error);
-        observer.emit({
-          missionId: mission.id,
-          step: 'recovery',
-          status: mission.status,
-          truth: 'unknown',
-          durationMs: Date.now() - started,
-          message: humanGate ? `owner_required:${blocker.reason}` : blocker.reason,
-          guardrails: missionGuard.snapshot()
-        });
-        return safeOutcome(mission, {
-          status: mission.status,
-          uncertainty: [String(error?.message || error), ...(learningError ? [String(learningError?.message || learningError)] : [])],
-          nextAction
-        });
+        observer.emit({ missionId: mission.id, step: 'recovery', status: mission.status, truth: 'unknown', durationMs: Date.now() - started, message: humanGate ? `owner_required:${blocker.reason}` : blocker.reason, guardrails: missionGuard.snapshot() });
+        return safeOutcome(mission, { status: mission.status, uncertainty: [String(error?.message || error), ...(learningError ? [String(learningError?.message || learningError)] : [])], nextAction });
       }
     } finally {
       cycleInFlight = false;
@@ -193,11 +142,7 @@ export function createRuntime({
       outcomes.push(outcome);
       if (outcome.status === 'idle') break;
     }
-    return {
-      status: outcomes.some(outcome => outcome.status === 'blocked') ? 'blocked' : 'completed',
-      cycles: outcomes,
-      executedCycles: outcomes.filter(outcome => outcome.status !== 'idle').length
-    };
+    return { status: outcomes.some(outcome => outcome.status === 'blocked') ? 'blocked' : 'completed', cycles: outcomes, executedCycles: outcomes.filter(outcome => outcome.status !== 'idle').length };
   }
 
   return { submit, cycle, runCycles, queue, cost: guard, guardrails: missionGuard, deadLetters, policy, state, netra, recovery };

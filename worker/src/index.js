@@ -84,12 +84,14 @@ function extractEdgeAnswer(result) {
 }
 
 async function runEdgeWithTimeout(env, model, message) {
+  // Use the documented Workers AI binding signature for maximum model compatibility.
+  // The previous third gateway-options argument could make edge inference fail before
+  // the model was invoked; live edge inference must remain independent of OpenAI quota.
   const input = {
-    messages: [{ role: 'system', content: PI_INSTRUCTIONS }, { role: 'user', content: message }],
+    prompt: `${PI_INSTRUCTIONS}\n\nUser: ${message}`,
     max_tokens: MAX_OUTPUT_TOKENS
   };
-  if (model === EDGE_ALTERNATIVE_MODEL) input.chat_template_kwargs = { enable_thinking: false };
-  const work = env.AI.run(model, input, { gateway: { id: 'default', skipCache: true } });
+  const work = env.AI.run(model, input);
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`edge model timeout: ${model}`)), EDGE_TIMEOUT_MS));
   return Promise.race([work, timeout]);
 }

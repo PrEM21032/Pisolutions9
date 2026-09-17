@@ -52,7 +52,7 @@ export function deterministicFallback(message) {
   }
 
   if (/\b(build|create|make|launch)\b/.test(text) && /\b(website|web site|store|marketplace|amazon)\b/.test(text)) {
-    return 'Yes. A product-launch marketplace can be built with a storefront, product catalog, search, product pages, cart, checkout, customer accounts, seller/admin dashboard, order management, payments, and analytics. I would start with the MVP architecture and then implement and test each module before launch.';
+    return 'Yes. This software build can become a product-launch marketplace with a storefront, product catalog, search, product pages, cart, checkout, customer accounts, seller/admin dashboard, order management, payments, and analytics. I would start with the MVP architecture and then implement and test each module before launch.';
   }
 
   if (/\b(website|web site|app|software|code)\b/.test(text)) {

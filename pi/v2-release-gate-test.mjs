@@ -57,8 +57,7 @@ const badEvidence = {
   truthLevel: 'verified',
   failureClass: 'unknown'
 };
-assert.doesNotThrow(() => validateSpecialistResult('research', badEvidence));
-assert.equal(badEvidence.evidence.length, 0);
+assert.throws(() => validateSpecialistResult('research', badEvidence), /requires evidence/);
 
 const missions = new Map();
 const state = {

@@ -3,29 +3,26 @@ import OpenAI from 'openai';
 const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
 const MAX_INPUT = 8000;
 
-function json(body, statusCode = 200, origin = ALLOWED_ORIGIN) {
-  return {
-    statusCode,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      'x-content-type-options': 'nosniff',
-      'access-control-allow-origin': origin,
-      'access-control-allow-methods': 'POST,OPTIONS',
-      'access-control-allow-headers': 'content-type',
-      vary: 'Origin'
-    },
-    body: JSON.stringify(body)
+function json(body, statusCode = 200, origin = '') {
+  const headers = {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'access-control-allow-methods': 'POST,OPTIONS',
+    'access-control-allow-headers': 'content-type',
+    vary: 'Origin'
   };
+  if (origin === ALLOWED_ORIGIN) headers['access-control-allow-origin'] = ALLOWED_ORIGIN;
+  return { statusCode, headers, body: JSON.stringify(body) };
 }
 
 function requestOrigin(event) {
-  const origin = event?.headers?.origin || event?.headers?.Origin || '';
-  return origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN;
+  return event?.headers?.origin || event?.headers?.Origin || '';
 }
 
 export async function handler(event) {
   const origin = requestOrigin(event);
+  if (origin && origin !== ALLOWED_ORIGIN) return json({ ok: false, error: 'origin_not_allowed' }, 403, origin);
   if (event.httpMethod === 'OPTIONS') return json({ ok: true }, 204, origin);
   if (event.httpMethod !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405, origin);
 

@@ -32,7 +32,7 @@ export function createAutonomousRecovery({ repair = null, alternatives = [] } = 
         trace.push({ phase: 'decision', action: 'alternative', count: plan.alternatives.length });
         const fallback = await runAlternativePlan(plan, option => option.execute(mission, context));
         trace.push({ phase: 'verify', action: 'alternative_result', status: fallback.status, selected: fallback.selected || null });
-        if (fallback.status === 'completed') return { ...fallback, trace };
+        if (fallback.status === 'completed') return { ...fallback, result: fallback.attempts.at(-1).result, trace };
       }
 
       trace.push({ phase: 'decision', action: 'retry', reason: 'safe_bounded_retry' });

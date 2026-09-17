@@ -9,6 +9,7 @@ const PROVIDER_TIMEOUT_MS = 5000;
 const EDGE_TIMEOUT_MS = 4500;
 const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
 const EDGE_ALTERNATIVE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
+const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5'];
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";
 
 function corsHeaders(origin) {
@@ -128,7 +129,11 @@ export default {
     if (message.length > MAX_INPUT) return json({ ok: false, error: 'message_too_large' }, 413, request);
 
     const providers = [];
-    if (env.OPENAI_API_KEY) providers.push({ name: 'openai', apiKey: env.OPENAI_API_KEY, model: env.PI_CHAT_MODEL || 'gpt-5.6-luna', baseUrl: 'https://api.openai.com/v1' });
+    if (env.OPENAI_API_KEY) {
+      const configured = env.PI_CHAT_MODEL;
+      const models = [...new Set([configured, ...OPENAI_MODEL_FALLBACKS].filter(Boolean))];
+      for (const model of models) providers.push({ name: `openai:${model}`, apiKey: env.OPENAI_API_KEY, model, baseUrl: 'https://api.openai.com/v1' });
+    }
     if (env.PI_FALLBACK_API_KEY && env.PI_FALLBACK_API_URL && env.PI_FALLBACK_MODEL) providers.push({ name: 'fallback', apiKey: env.PI_FALLBACK_API_KEY, model: env.PI_FALLBACK_MODEL, baseUrl: env.PI_FALLBACK_API_URL });
 
     let lastFailure = null;
@@ -137,7 +142,7 @@ export default {
         const response = await callProvider({ ...provider, message });
         if (!response.ok) {
           lastFailure = { response, failure: providerError(response), provider: provider.name };
-          if (response.status === 429 || response.status >= 500) continue;
+          if (response.status === 429 || response.status >= 500 || response.status === 404) continue;
           const recovered = recoveryResponse(message, request, lastFailure);
           return recovered || json({ ok: false, error: lastFailure.failure.error }, lastFailure.failure.status, request);
         }

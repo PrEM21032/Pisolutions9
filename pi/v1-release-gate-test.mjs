@@ -5,6 +5,7 @@ import { createPersonalExecutionBridge } from './personal-execution-bridge.mjs';
 import { planNoGpt, executeNoGptPlan } from './no-gpt-engine.mjs';
 import { createNetra } from './netra.mjs';
 import { diagnoseFailure, createPreventionAction } from './learning-prevention.mjs';
+import { verifyOutcome } from './verify.mjs';
 import fs from 'node:fs';
 
 const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -16,6 +17,15 @@ if (!wiredScripts.includes('netra-test.mjs')) throw new Error('netra_test_not_wi
 if (!wiredScripts.includes('learning-prevention-test.mjs')) throw new Error('learning_prevention_test_not_wired');
 if (!policy.requireEvidenceForVerified || !policy.requireIndependentVerification) throw new Error('v1_truth_gate_missing');
 if (!policy.humanApprovalRequiredFor?.includes('financial_transfer')) throw new Error('v1_human_gate_missing');
+
+const forgedEmptyCompletion = verifyOutcome({ status: 'completed', completed: [], evidence: [{ source: 'attacker', claim: 'fake completion' }] });
+if (forgedEmptyCompletion.ok || forgedEmptyCompletion.truth !== 'unknown' || !forgedEmptyCompletion.claimsMissing) throw new Error('v1_empty_completion_false_positive');
+const forgedNoEvidence = verifyOutcome({ status: 'completed', completed: [{ verified: true, claim: 'unsupported completion' }], evidence: [] });
+if (forgedNoEvidence.ok || forgedNoEvidence.truth !== 'unknown' || !forgedNoEvidence.evidenceMissing) throw new Error('v1_completed_without_evidence_accepted');
+const verifiedCompletion = verifyOutcome({ status: 'completed', completed: [{ verified: true, claim: 'supported completion' }], evidence: [{ source: 'test', claim: 'supporting evidence' }] });
+if (!verifiedCompletion.ok || verifiedCompletion.truth !== 'verified') throw new Error('v1_verified_completion_rejected');
+const blockedOutcome = verifyOutcome({ status: 'blocked', completed: [], evidence: [] });
+if (!blockedOutcome.ok || blockedOutcome.truth !== 'verified') throw new Error('v1_blocked_outcome_rejected');
 
 const netra = createNetra();
 const preCheck = netra.inspect('Build and verify the PI V1 engineering release', 'pre');
@@ -100,4 +110,4 @@ const learningMission = await learningRuntime.submit('Verify Layer 4 recovery be
 const learningOutcome = await learningRuntime.cycle();
 if (learningOutcome.status !== 'retrying' && learningOutcome.status !== 'completed' && learningOutcome.status !== 'blocked') throw new Error('v1_learning_runtime_invalid_status');
 
-console.log(JSON.stringify({ ok: true, release: 'PI V1', runtime: true, deterministicPath: true, netraPreCheck: true, runtimeNetraPreCheck: true, netraFinalCheck: true, memoryGoalsTasks: true, safeExecution: true, protectedActions: true, evidenceGate: true, idempotency: true, layer4RuntimeHook: true, truth: 'verified' }));
+console.log(JSON.stringify({ ok: true, release: 'PI V1', runtime: true, deterministicPath: true, netraPreCheck: true, runtimeNetraPreCheck: true, netraFinalCheck: true, memoryGoalsTasks: true, safeExecution: true, protectedActions: true, evidenceGate: true, idempotency: true, layer4RuntimeHook: true, falseCompletionGuard: true, truth: 'verified' }));

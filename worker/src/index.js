@@ -77,9 +77,11 @@ function extractAnswer(body) {
 
 async function callWorkersAI(env, message) {
   if (!env.AI || typeof env.AI.run !== 'function') return null;
-  const prompt = `${PI_INSTRUCTIONS}\n\nUser question:\n${message}`;
   const result = await env.AI.run(env.PI_EDGE_MODEL || DEFAULT_EDGE_MODEL, {
-    prompt,
+    messages: [
+      { role: 'system', content: PI_INSTRUCTIONS },
+      { role: 'user', content: message }
+    ],
     max_tokens: MAX_OUTPUT_TOKENS
   });
   if (typeof result === 'string') return result.trim() || null;

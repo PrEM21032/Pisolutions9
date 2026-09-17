@@ -45,6 +45,7 @@ export function createRuntime({
   if (!Number.isInteger(v2MaxParallel) || v2MaxParallel < 1) throw new Error('invalid_v2_max_parallel');
   const queue = createQueue();
   const guard = createCostGuard(cost);
+  let cycleInFlight = false;
 
   async function submit(objective, context = {}) {
     const preCheck = netra.inspect(objective, 'pre');
@@ -113,53 +114,62 @@ export function createRuntime({
   }
 
   async function cycle() {
-    const queued = queue.next();
-    if (!queued) return { status: 'idle' };
-    let mission = await state.load(queued.mission.id) || queued.mission;
-    const started = Date.now();
-    observer.emit({ missionId: mission.id, step: 'cycle', status: 'running', truth: 'unknown', message: 'cycle_started' });
+    if (cycleInFlight) {
+      observer.emit({ missionId: null, step: 'cycle_guard', status: 'blocked', truth: 'verified', message: 'cycle_already_running' });
+      return { status: 'blocked', nextAction: 'retry_later', uncertainty: ['Another runtime cycle is already executing; no overlapping cycle was started.'] };
+    }
+    cycleInFlight = true;
     try {
-      mission = await state.save({ ...mission, status: 'running' });
-      guard.action();
-      const result = await executeMission(mission);
-      if (result.v2Graph) {
-        mission = await state.save({ ...mission, missionGraph: result.v2Graph });
+      const queued = queue.next();
+      if (!queued) return { status: 'idle' };
+      let mission = await state.load(queued.mission.id) || queued.mission;
+      const started = Date.now();
+      observer.emit({ missionId: mission.id, step: 'cycle', status: 'running', truth: 'unknown', message: 'cycle_started' });
+      try {
+        mission = await state.save({ ...mission, status: 'running' });
+        guard.action();
+        const result = await executeMission(mission);
+        if (result.v2Graph) {
+          mission = await state.save({ ...mission, missionGraph: result.v2Graph });
+        }
+        const gate = verifyOutcome(result);
+        if (!gate.ok) throw new Error('verification_failed');
+        if (result.status === 'completed' && (!Array.isArray(result.evidence) || result.evidence.length === 0)) throw new Error('evidence_required_for_completed');
+        const checked = verify ? await verify(result, mission) : result;
+        const finalCheck = netra.inspect({ outcome: checked?.status, evidence: checked?.evidence }, 'final');
+        observer.emit({ missionId: mission.id, step: 'netra_finalcheck', status: finalCheck.allowed ? 'allowed' : 'blocked', truth: 'verified', message: finalCheck.severity, findings: finalCheck.findings });
+        if (!finalCheck.allowed) throw new Error(`netra_finalcheck_blocked:${finalCheck.severity}`);
+        const outcome = safeOutcome(mission, checked);
+        mission = await state.save({ ...mission, status: outcome.status, result: outcome });
+        observer.emit({ missionId: mission.id, step: 'verify', status: outcome.status, truth: outcome.truth?.verified?.length ? 'verified' : 'probable', durationMs: Date.now() - started, message: 'cycle_verified' });
+        return outcome;
+      } catch (error) {
+        let learningError = null;
+        try { await recordLearning(mission, error); } catch (learnError) { learningError = learnError; }
+        const blocker = classifyBlocker(error);
+        const humanGate = !blocker.safeToReroute || Boolean(learningError);
+        mission = humanGate
+          ? await state.save({ ...mission, status: 'blocked' })
+          : markFailure(mission, error);
+        const nextAction = humanGate ? 'owner_required' : null;
+        if (mission.status === 'retrying') queue.enqueue(mission);
+        else if (mission.status === 'blocked') deadLetters.add(mission, error);
+        observer.emit({
+          missionId: mission.id,
+          step: 'recovery',
+          status: mission.status,
+          truth: 'unknown',
+          durationMs: Date.now() - started,
+          message: humanGate ? `owner_required:${blocker.reason}` : blocker.reason
+        });
+        return safeOutcome(mission, {
+          status: mission.status,
+          uncertainty: [String(error?.message || error), ...(learningError ? [String(learningError?.message || learningError)] : [])],
+          nextAction
+        });
       }
-      const gate = verifyOutcome(result);
-      if (!gate.ok) throw new Error('verification_failed');
-      if (result.status === 'completed' && (!Array.isArray(result.evidence) || result.evidence.length === 0)) throw new Error('evidence_required_for_completed');
-      const checked = verify ? await verify(result, mission) : result;
-      const finalCheck = netra.inspect({ outcome: checked?.status, evidence: checked?.evidence }, 'final');
-      observer.emit({ missionId: mission.id, step: 'netra_finalcheck', status: finalCheck.allowed ? 'allowed' : 'blocked', truth: 'verified', message: finalCheck.severity, findings: finalCheck.findings });
-      if (!finalCheck.allowed) throw new Error(`netra_finalcheck_blocked:${finalCheck.severity}`);
-      const outcome = safeOutcome(mission, checked);
-      mission = await state.save({ ...mission, status: outcome.status, result: outcome });
-      observer.emit({ missionId: mission.id, step: 'verify', status: outcome.status, truth: outcome.truth?.verified?.length ? 'verified' : 'probable', durationMs: Date.now() - started, message: 'cycle_verified' });
-      return outcome;
-    } catch (error) {
-      let learningError = null;
-      try { await recordLearning(mission, error); } catch (learnError) { learningError = learnError; }
-      const blocker = classifyBlocker(error);
-      const humanGate = !blocker.safeToReroute || Boolean(learningError);
-      mission = humanGate
-        ? await state.save({ ...mission, status: 'blocked' })
-        : markFailure(mission, error);
-      const nextAction = humanGate ? 'owner_required' : null;
-      if (mission.status === 'retrying') queue.enqueue(mission);
-      else if (mission.status === 'blocked') deadLetters.add(mission, error);
-      observer.emit({
-        missionId: mission.id,
-        step: 'recovery',
-        status: mission.status,
-        truth: 'unknown',
-        durationMs: Date.now() - started,
-        message: humanGate ? `owner_required:${blocker.reason}` : blocker.reason
-      });
-      return safeOutcome(mission, {
-        status: mission.status,
-        uncertainty: [String(error?.message || error), ...(learningError ? [String(learningError?.message || learningError)] : [])],
-        nextAction
-      });
+    } finally {
+      cycleInFlight = false;
     }
   }
 

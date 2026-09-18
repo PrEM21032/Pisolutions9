@@ -124,7 +124,7 @@ function runLocalMission(text, note = 'Local zero-cost mode') {
   } else {
     showCustomerResponse(text, { title: 'PI', message: 'PI’s live answer service is temporarily unavailable. Please try again in a moment.' }, plan, 'PI');
   }
-  systemStatus.textContent = 'PI ready';
+  systemStatus.textContent = 'PI local mode';
 }
 
 function chatApiUrl() {
@@ -140,8 +140,9 @@ async function runCustomerChat(text) {
     const response = await fetch(chatApiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text }) });
     const body = await response.json();
     if (!response.ok || !body.answer) throw new Error(body.error || 'chat_unavailable');
-    showCustomerResponse(text, { title: 'PI', message: body.answer }, { intent: 'direct-answer' }, 'PI');
-    systemStatus.textContent = 'PI ready';
+    const truthLabel = body.truth === 'deterministic' ? 'Recovery answer · provider unavailable' : 'Model answer · live response';
+    showCustomerResponse(text, { title: 'PI', message: body.answer }, { intent: 'direct-answer' }, truthLabel);
+    systemStatus.textContent = body.truth === 'deterministic' ? 'PI recovery mode' : 'PI ready';
     return true;
   } catch {
     runLocalMission(text);

@@ -69,7 +69,7 @@ jobs:
           test "$(curl --silent --show-error --location --max-time 15 -I -X OPTIONS \
             -H 'origin: https://prem21032.github.io' \
             -H 'access-control-request-method: POST' \
-            -H 'access-control-request-headers: content-type' "$endpoint" | tr -d '\r' | grep -i '^access-control-allow-origin:' | sed 's/^[^:]*: //' | xargs)" = 'https://pisolutions9.github.io'
+            -H 'access-control-request-headers: content-type' "$endpoint" | tr -d '\r' | grep -i '^access-control-allow-origin:' | sed 's/^[^:]*: //' | xargs)" = 'https://prem21032.github.io'
       - name: Live customer chat smoke test
         shell: bash
         run: |

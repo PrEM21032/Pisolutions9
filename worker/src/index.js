@@ -9,7 +9,8 @@ const EDGE_TIMEOUT_MS = 12000;
 const DEFAULT_EDGE_MODEL = '@cf/meta/llama-3.2-1b-instruct';
 const DEFAULT_EDGE_MODEL_SECONDARY = '@cf/meta/llama-3.2-3b-instruct';
 const EDGE_MODEL_FALLBACKS = [
-  '@cf/meta/llama-3.1-8b-instruct-fp8'
+  '@cf/meta/llama-3.1-8b-instruct-fp8',
+  '@cf/meta/llama-3.1-8b-instruct'
 ];
 const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5'];
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";

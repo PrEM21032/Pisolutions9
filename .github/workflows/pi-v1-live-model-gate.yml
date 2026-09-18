@@ -36,8 +36,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          response=$(curl --silent --show-error --fail-with-body --max-time 20             -H 'content-type: application/json'             -H 'origin: https://prem21032.github.io'             -d '{"message":"Explain in clear terms what PI V1 does and how it verifies answers."}'             "$PI_CHAT_URL")
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --max-time 20 --output "$response_file" --write-out '%{http_code}' \
+            -H 'content-type: application/json' \
+            -H 'origin: https://prem21032.github.io' \
+            -d '{"message":"Explain in clear terms what PI V1 does and how it verifies answers."}' \
+            "$PI_CHAT_URL")"
+          response="$(cat "$response_file")"
+          rm -f "$response_file"
+          echo "HTTP_STATUS=$status"
           echo "$response"
+          if [ "$status" != "200" ]; then
+            echo "live gate failed: endpoint returned HTTP $status" >&2
+            exit 22
+          fi
           python - <<'PY' "$response" "$GITHUB_SHA"
           import json, sys
           body=json.loads(sys.argv[1])

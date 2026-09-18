@@ -47,13 +47,13 @@ jobs:
             exit 0
           fi
           cat > "$marker" <<EOF
-# PI Live Model Verification
+          # PI Live Model Verification
 
-Verified commit: $GITHUB_SHA
-Verified at: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          Verified commit: $GITHUB_SHA
+          Verified at: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
-The public customer chat path returned at least one genuine model-backed response from the live deployment. Deterministic recovery was not counted as success.
-EOF
+          The public customer chat path returned at least one genuine model-backed response from the live deployment. Deterministic recovery was not counted as success.
+          EOF
           git config user.name 'PI Release Watch'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add "$marker"

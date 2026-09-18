@@ -37,23 +37,27 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
-          status="$(curl --silent --show-error --max-time 20 --output "$response_file" --write-out '%{http_code}' \
-            -H 'content-type: application/json' \
-            -H 'origin: https://prem21032.github.io' \
-            -d '{"message":"Explain in clear terms what PI V1 does and how it verifies answers."}' \
-            "$PI_CHAT_URL")"
-          response="$(cat "$response_file")"
-          rm -f "$response_file"
-          echo "HTTP_STATUS=$status"
-          echo "$response"
-          if [ "$status" != "200" ]; then
-            echo "live gate failed: endpoint returned HTTP $status" >&2
-            exit 22
-          fi
-          python - <<'PY' "$response" "$GITHUB_SHA"
+          trap 'rm -f "$response_file"' EXIT
+          for attempt in 1 2 3 4; do
+            status="$(curl --silent --show-error --max-time 20 \
+              -H 'content-type: application/json' \
+              -H 'origin: https://prem21032.github.io' \
+              -d '{"message":"Explain in clear terms what PI V1 does and how it verifies answers."}' \
+              --output "$response_file" --write-out '%{http_code}' "$PI_CHAT_URL" || true)"
+            echo "LIVE_MODEL_ATTEMPT=$attempt HTTP_STATUS=$status"
+            cat "$response_file"
+            set +e
+            python - "$response_file" "$status" "$GITHUB_SHA" <<'PY'
           import json, sys
-          body=json.loads(sys.argv[1])
-          sha=sys.argv[2]
+          path, status, sha = sys.argv[1:]
+          try:
+              body=json.load(open(path))
+          except Exception as exc:
+              print(f'live gate failed: invalid JSON: {exc}')
+              raise SystemExit(11 if status in {'429','502','503','504'} else 1)
+          if status in {'429','502','503','504'}:
+              print(f'live gate transient HTTP failure: {status}')
+              raise SystemExit(11)
           if body.get('ok') is not True:
               raise SystemExit(f'live gate failed: ok={body.get("ok")}')
           answer=body.get('answer')
@@ -61,11 +65,25 @@ jobs:
           if not isinstance(answer,str) or len(answer.strip()) < 120:
               raise SystemExit('live gate failed: missing/short model answer')
           if source == 'pi-chat-deterministic-recovery':
+              if body.get('providerFailure') == 'chat_provider_rate_limited':
+                  print('live gate transient provider rate limit; retrying')
+                  raise SystemExit(11)
               raise SystemExit('live gate failed: deterministic recovery is not live-model success')
           if body.get('truth') != 'model-response':
-              raise SystemExit(f'unexpected truth={body.get("truth")}')
+              raise SystemExit(f'live gate failed: unexpected truth={body.get("truth")}')
           print(f'LIVE_MODEL_PASS sha={sha} source={source} answer_chars={len(answer)}')
           PY
+            result=$?
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if [ "$result" -ne 11 ] || [ "$attempt" -eq 4 ]; then exit "$result"; fi
+            base_delay=$((2 ** (attempt - 1)))
+            jitter=$((RANDOM % (base_delay + 1)))
+            delay=$((base_delay + jitter))
+            echo "Transient live-model failure; retrying in ${delay}s with jitter."
+            sleep "$delay"
+          done
+          exit 1
 
       - name: Verify V1 regression and V2 release gates
         run: npm test

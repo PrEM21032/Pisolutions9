@@ -2,11 +2,6 @@ name: PI Chat Worker
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'worker/**'
-      - '.github/workflows/pi-chat-worker.yml'
 
 permissions:
   contents: read

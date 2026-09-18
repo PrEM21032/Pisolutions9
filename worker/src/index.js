@@ -1,7 +1,11 @@
 // PI V1 release-candidate deployment marker: keep the customer worker deployment tied to this release train.
 // Launch-gate path: sequential Workers AI model routing through AI Gateway, sequential provider fallback, deterministic emergency recovery.
-import { deterministicFallback } from './deterministic-fallback.mjs';const ALLOWED_ORIGINS = new Set(['https://prem21032.github.io', 'https://pisolutions9.github.io']);
-function normalizeOrigin(value) { return String(value || '').trim().toLowerCase().replace(/\/$/, ''); }
+import { deterministicFallback } from './deterministic-fallback.mjs';
+
+const ALLOWED_ORIGINS = new Set(['https://prem21032.github.io', 'https://pisolutions9.github.io']);
+function normalizeOrigin(value) {
+  return String(value || '').trim().toLowerCase().replace(/\/$/, '');
+}
 const MAX_INPUT = 8000;
 const MAX_OUTPUT_TOKENS = 192;
 const PROVIDER_TIMEOUT_MS = 8000;
@@ -16,7 +20,8 @@ const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";
 
 function corsHeaders(origin) {
-  return {'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff',...(ALLOWED_ORIGINS.has(normalizeOrigin(origin))?{'access-control-allow-origin':origin}:{}),'access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'content-type','access-control-max-age':'600',vary:'Origin'};
+  const normalizedOrigin = normalizeOrigin(origin);
+  return {'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff',...(ALLOWED_ORIGINS.has(normalizedOrigin)?{'access-control-allow-origin':origin}:{}),'access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'content-type','access-control-max-age':'600',vary:'Origin'};
 }
 function json(body,status,request,extraHeaders={}){const origin=request.headers.get('Origin')||'';return new Response(JSON.stringify(body),{status,headers:{...corsHeaders(origin),...extraHeaders}});}
 function preflight(request){const origin=request.headers.get('Origin')||'';if(origin&&!ALLOWED_ORIGINS.has(normalizeOrigin(origin)))return json({ok:false,error:'origin_not_allowed'},403,request);return new Response(null,{status:204,headers:corsHeaders(origin)});}

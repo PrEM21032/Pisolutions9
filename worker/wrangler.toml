@@ -1,1 +1,10 @@
-name = "pi-chat"main = "src/index.js"compatibility_date = "2026-09-16"[vars]PI_CHAT_MODEL = "gpt-5.6-luna"PI_EDGE_MODEL = "@cf/ibm-granite/granite-4.0-h-micro"[ai]binding = "AI"
+name = "pi-chat"
+main = "src/index.js"
+compatibility_date = "2026-09-16"
+
+[vars]
+PI_CHAT_MODEL = "gpt-5.6-luna"
+PI_EDGE_MODEL = "@cf/ibm-granite/granite-4.0-h-micro"
+
+[ai]
+binding = "AI"

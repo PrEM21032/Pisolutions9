@@ -133,13 +133,30 @@ function chatApiUrl() {
   return `${base}/api/chat`;
 }
 
+async function fetchCustomerAnswer(message) {
+  const request = { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message }) };
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(chatApiUrl(), request);
+      const body = await response.json();
+      if (response.ok && body.answer) return body;
+      lastError = new Error(body.error || `chat_unavailable_${response.status}`);
+      if (response.status < 500 && response.status !== 429) throw lastError;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 2) throw lastError;
+    }
+    await new Promise(resolve => setTimeout(resolve, 250 * (2 ** attempt) + Math.floor(Math.random() * 200)));
+  }
+  throw lastError || new Error('chat_unavailable');
+}
+
 async function runCustomerChat(text) {
   run.disabled = true;
   systemStatus.textContent = 'Krishna thinking…';
   try {
-    const response = await fetch(chatApiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text }) });
-    const body = await response.json();
-    if (!response.ok || !body.answer) throw new Error(body.error || 'chat_unavailable');
+    const body = await fetchCustomerAnswer(text);
     const truthLabel = body.truth === 'deterministic' ? 'Recovery answer · provider unavailable' : 'Model answer · live response';
     showCustomerResponse(text, { title: 'PI', message: body.answer }, { intent: 'direct-answer' }, truthLabel);
     systemStatus.textContent = body.truth === 'deterministic' ? 'PI recovery mode' : 'PI ready';

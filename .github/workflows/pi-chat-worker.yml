@@ -63,13 +63,13 @@ jobs:
           set -euo pipefail
           endpoint='https://pi-chat.premchandyadlapati.workers.dev/api/chat'
           status="$(curl --silent --show-error --location --max-time 15 -X OPTIONS \
-            -H 'origin: https://pisolutions9.github.io' \
+            -H 'origin: https://prem21032.github.io' \
             -H 'access-control-request-method: POST' \
             -H 'access-control-request-headers: content-type' \
             --output /tmp/pi-preflight.json --write-out '%{http_code}' "$endpoint")"
           test "$status" = 204
           test "$(curl --silent --show-error --location --max-time 15 -I -X OPTIONS \
-            -H 'origin: https://pisolutions9.github.io' \
+            -H 'origin: https://prem21032.github.io' \
             -H 'access-control-request-method: POST' \
             -H 'access-control-request-headers: content-type' "$endpoint" | tr -d '\r' | grep -i '^access-control-allow-origin:' | sed 's/^[^:]*: //' | xargs)" = 'https://pisolutions9.github.io'
       - name: Live customer chat smoke test
@@ -95,7 +95,7 @@ jobs:
           for question in "${questions[@]}"; do
             status="$(curl --silent --show-error --location --max-time 20 --retry 2 --retry-all-errors \
               -H 'content-type: application/json' \
-              -H 'origin: https://pisolutions9.github.io' \
+              -H 'origin: https://prem21032.github.io' \
               -d "$(python -c 'import json,sys; print(json.dumps({"message":sys.argv[1]}))' "$question")" \
               --output /tmp/pi-chat.json --write-out '%{http_code}' "$endpoint")"
             echo "Chat HTTP status: $status | input: $question"

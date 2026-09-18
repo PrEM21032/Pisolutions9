@@ -5,27 +5,27 @@ const originalToken = process.env.PI_OWNER_TOKEN;
 process.env.PI_OWNER_TOKEN = 'test-owner-token';
 
 try {
-  const preflight = await handler({ httpMethod: 'OPTIONS', headers: { origin: 'https://pisolutions9.github.io' } });
+  const preflight = await handler({ httpMethod: 'OPTIONS', headers: { origin: 'https://prem21032.github.io' } });
   assert.equal(preflight.statusCode, 204);
-  assert.equal(preflight.headers['access-control-allow-origin'], 'https://pisolutions9.github.io');
+  assert.equal(preflight.headers['access-control-allow-origin'], 'https://prem21032.github.io');
   assert.match(preflight.headers['access-control-allow-methods'], /POST/);
 
-  const health = await handler({ httpMethod: 'GET', headers: { origin: 'https://pisolutions9.github.io' } });
+  const health = await handler({ httpMethod: 'GET', headers: { origin: 'https://prem21032.github.io' } });
   assert.equal(health.statusCode, 200);
-  assert.equal(health.headers['access-control-allow-origin'], 'https://pisolutions9.github.io');
+  assert.equal(health.headers['access-control-allow-origin'], 'https://prem21032.github.io');
 
   const unauthorized = await handler({
     httpMethod: 'POST',
-    headers: { origin: 'https://pisolutions9.github.io' },
+    headers: { origin: 'https://prem21032.github.io' },
     body: JSON.stringify({ objective: 'test' })
   });
   assert.equal(unauthorized.statusCode, 401);
-  assert.equal(unauthorized.headers['access-control-allow-origin'], 'https://pisolutions9.github.io');
+  assert.equal(unauthorized.headers['access-control-allow-origin'], 'https://prem21032.github.io');
 
   const authorized = await handler({
     httpMethod: 'POST',
     headers: {
-      origin: 'https://pisolutions9.github.io',
+      origin: 'https://prem21032.github.io',
       authorization: 'Bearer test-owner-token'
     },
     body: JSON.stringify({ objective: 'research Indian agriculture exports' })
@@ -34,7 +34,7 @@ try {
   const body = JSON.parse(authorized.body);
   assert.equal(body.ok, true);
   assert.equal(body.truth, 'verified');
-  assert.equal(authorized.headers['access-control-allow-origin'], 'https://pisolutions9.github.io');
+  assert.equal(authorized.headers['access-control-allow-origin'], 'https://prem21032.github.io');
 
   console.log(JSON.stringify({ ok: true, phase: 58, cors: true, auth: true, cloudContract: true, truth: 'verified' }));
 } finally {

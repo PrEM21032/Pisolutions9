@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 
-const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
+const ALLOWED_ORIGIN = 'https://prem21032.github.io';
 const MAX_INPUT = 8000;
 
 function json(body, statusCode = 200, origin = '') {

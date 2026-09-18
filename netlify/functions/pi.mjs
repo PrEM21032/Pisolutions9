@@ -1,6 +1,6 @@
 import { planNoGpt, executeNoGptPlan } from '../../pi/no-gpt-engine.mjs';
 
-const ALLOWED_ORIGIN = 'https://pisolutions9.github.io';
+const ALLOWED_ORIGIN = 'https://prem21032.github.io';
 
 function json(body, statusCode = 200, origin = ALLOWED_ORIGIN) {
   return {

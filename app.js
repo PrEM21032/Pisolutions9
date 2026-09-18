@@ -151,7 +151,7 @@ async function runCustomerChat(text) {
 }
 
 async function runCloudMission(text) {
-  const token = ownerToken.value.trim();
+  const token = ownerToken?.value.trim() || '';
   if (!token) {
     await runCustomerChat(text);
     return;

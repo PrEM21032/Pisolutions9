@@ -1,4 +1,5 @@
-// PI V1 release-candidate deployment marker: keep the customer worker deployment tied to this release train.// Launch-gate path: sequential Workers AI model routing, sequential provider fallback, deterministic emergency recovery.function normalize(message) {
+// PI V1 release-candidate deployment marker: keep the customer worker deployment tied to this release train.// Launch-gate path: sequential Workers AI model routing, sequential provider fallback, deterministic emergency recovery.
+function normalize(message) {
   return message.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 

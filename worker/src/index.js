@@ -2,13 +2,13 @@
 // Launch-gate path: sequential Workers AI model routing through AI Gateway, sequential provider fallback, deterministic emergency recovery.
 import { deterministicFallback } from './deterministic-fallback.mjs';const ALLOWED_ORIGIN = 'https://prem21032.github.io';
 const MAX_INPUT = 8000;
-const MAX_OUTPUT_TOKENS = 256;
+const MAX_OUTPUT_TOKENS = 192;
 const PROVIDER_TIMEOUT_MS = 8000;
 const EDGE_TIMEOUT_MS = 12000;
-const DEFAULT_EDGE_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
+const DEFAULT_EDGE_MODEL = '@cf/meta/llama-3.2-1b-instruct';
 const EDGE_MODEL_FALLBACKS = [
-  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-  '@cf/zai-org/glm-4.7-flash'
+  '@cf/meta/llama-3.2-3b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct-fp8-fast'
 ];
 const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5'];
 const PI_INSTRUCTIONS = "You are PI, an autonomous intelligence assistant coordinated by Krishna. Answer the user's actual question directly and naturally. Do not expose internal routing, classification, planning, tool, or verification language. If current facts or an external action cannot be verified, say what is missing instead of inventing it. Never claim an action was completed unless it actually was.";

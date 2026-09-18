@@ -3,23 +3,16 @@ function normalize(message) {
 }
 
 function arithmetic(message) {
-  const expression = message
-    .replace(/\b(what is|calculate|compute|solve)\b/gi, '')
-    .replace(/\b(plus|add)\b/gi, '+')
-    .replace(/\b(minus|subtract)\b/gi, '-')
-    .replace(/\b(times|multiplied by)\b/gi, '*')
-    .replace(/\b(divided by|over)\b/gi, '/')
-    .replace(/\b(to the power of|power)\b/gi, '**')
-    .replace(/\?/g, '')
-    .trim();
+  const expression = message.replace(/\b(what is|calculate|compute|solve)\b/gi, '').replace(/\b(plus|add)\b/gi, '+').replace(/\b(minus|subtract)\b/gi, '-').replace(/\b(times|multiplied by)\b/gi, '*').replace(/\b(divided by|over)\b/gi, '/').replace(/\b(to the power of|power)\b/gi, '**').replace(/\?/g, '').trim();
   if (!/^[0-9+\-*/().%\s]+$/.test(expression) || !/[0-9]/.test(expression)) return null;
-  try {
-    const value = Function(`"use strict"; return (${expression})`)();
-    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-    return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(10)));
-  } catch {
-    return null;
-  }
+  const tokens = expression.match(/\d+(?:\.\d+)?|\*\*|[()+\-*/%]/g);
+  if (!tokens || tokens.join('') !== expression.replace(/\s+/g, '')) return null;
+  let index = 0;
+  const primary = () => { if (tokens[index] === '(') { index++; const value = addSub(); if (tokens[index++] !== ')') throw new Error('paren'); return value; } const token = tokens[index++]; if (!token || !/^\d/.test(token)) throw new Error('number'); return Number(token); };
+  const power = () => { let value = primary(); if (tokens[index] === '**') { index++; value **= power(); } return value; };
+  const mulDiv = () => { let value = power(); while (/[*/%]/.test(tokens[index] || '')) { const op = tokens[index++]; const right = power(); if (op === '*') value *= right; else if (op === '/') value /= right; else value %= right; } return value; };
+  const addSub = () => { let value = mulDiv(); while (tokens[index] === '+' || tokens[index] === '-') { const op = tokens[index++]; const right = mulDiv(); value = op === '+' ? value + right : value - right; } return value; };
+  try { const value = addSub(); if (index !== tokens.length || !Number.isFinite(value)) return null; return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(10))); } catch { return null; }
 }
 
 function complexRecovery(text) {

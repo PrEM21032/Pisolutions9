@@ -4,7 +4,7 @@ compatibility_date = "2026-09-16"
 
 [vars]
 PI_CHAT_MODEL = "gpt-5.6-luna"
-PI_EDGE_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+PI_EDGE_MODEL = "@cf/meta/llama-3.2-1b-instruct"
 
 [ai]
 binding = "AI"

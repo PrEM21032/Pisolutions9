@@ -71,9 +71,10 @@ jobs:
           base='https://pisolutions9.github.io/Pisolutions9'
           for attempt in {1..18}; do
             matched=1
-            for file in index.html app.js styles.css; do
-              curl --silent --show-error --location --max-time 20 "$base/$file?candidate=$GITHUB_SHA" --output "/tmp/live-$file" || matched=0
-              if [[ "$matched" = 1 ]] && ! cmp --silent "$file" "/tmp/live-$file"; then matched=0; fi
+            for file in index.html app.js styles.css pi/customer-response.mjs; do
+              local_file="/tmp/live-${file//\//-}"
+              curl --silent --show-error --location --max-time 20 "$base/$file?candidate=$GITHUB_SHA" --output "$local_file" || matched=0
+              if [[ "$matched" = 1 ]] && ! cmp --silent "$file" "$local_file"; then matched=0; fi
             done
             if [[ "$matched" = 1 ]]; then
               echo "Exact V2 console assets are live for $GITHUB_SHA."

@@ -33,4 +33,9 @@ The repository contains the owner-console/runtime foundation plus release-gate a
 
 ## Release gate
 
+The current [unified delivery plan](PI_UNIFIED_DELIVERY_PLAN.md) records the
+phone/laptop continuity gap, required owner sign-in setup, staged fixes and
+acceptance evidence. Guest conversation history is currently tab-local; opening
+the same link on another device does not synchronize it.
+
 V1 is not considered released until the published owner console, runtime endpoint, automated verification, human-understanding behavior, and end-to-end mission flow have each been directly tested and evidenced.

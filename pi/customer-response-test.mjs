@@ -6,13 +6,14 @@ const no = { ok: false };
 const answer = { ok: true, status: 'answered', answer: 'A useful reply.', truth: 'model-response' };
 assert.equal(chatOutcome(ok, answer).complete, true);
 assert.match(chatOutcome(ok, answer).note, /not independently checked/);
-for (const error of ['live_data_connector_not_configured', 'hard_reasoning_not_verified', 'chat_provider_rate_limited', 'message_too_large']) {
+for (const error of ['live_data_connector_not_configured', 'hard_reasoning_not_verified', 'chat_provider_rate_limited', 'message_too_large', 'attachment_invalid', 'attachment_unsupported', 'attachment_too_large', 'attachment_conversion_failed', 'attachment_conversion_unavailable']) {
   const outcome = chatOutcome(no, { error });
   assert.equal(outcome.complete, false);
   assert.equal(outcome.restoreDraft, true);
   assert.equal(outcome.remember, false);
   assert.notEqual(outcome.label, 'Request failed');
-  assert.match(outcome.answer, /kept below/);
+  assert.ok(outcome.answer.length > 20);
+  if (!error.startsWith('attachment_')) assert.match(outcome.answer, /kept below/);
 }
 for (const body of [null, {}, { ...answer, ok: false }, { ...answer, answer: [] }, { ...answer, answer: ' ' }]) {
   const outcome = chatOutcome(ok, body);
@@ -43,3 +44,7 @@ assert.equal(grounded.complete, true);
 assert.match(grounded.note, /live web research/i);
 assert.equal(grounded.sources.length, 1);
 assert.equal(grounded.sources[0].url, 'https://example.com/source');
+
+const fileGrounded = chatOutcome(ok, { ok: true, status: 'answered', answer: 'The attached document says revenue grew 20%.', truth: 'file-grounded-model-response' });
+assert.equal(fileGrounded.complete, true);
+assert.match(fileGrounded.note, /attached file or image/i);

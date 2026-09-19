@@ -150,7 +150,35 @@ async function fetchCustomerAnswer(message) {
     await new Promise(resolve => setTimeout(resolve, 250 * (2 ** attempt) + Math.floor(Math.random() * 200)));
   }
   throw lastError || new Error('chat_unavailable');
+}function showCustomerResponse(text, response, plan, source) {
+  missionTitle.textContent = response.title;
+  steps.replaceChildren();
+  const missionSteps = [
+    ['Answer', response.message, source],
+    ['Next step', 'Use this answer as a starting point. Add constraints or ask a follow-up to make it specific.', 'Practical follow-up'],
+    ['Verify', 'Check time-sensitive, financial, legal or safety-critical details before acting.', 'Honest uncertainty']
+  ];
+  missionSteps.forEach(([label, detail], index) => {
+    const step = document.createElement('div');
+    step.className = 'step';
+    const number = document.createElement('i');
+    number.textContent = String(index + 1).padStart(2, '0');
+    const content = document.createElement('div');
+    const answer = document.createElement('strong');
+    if (index === 0) answer.textContent = response.message;
+    else answer.textContent = label;
+    const meta = document.createElement('small');
+    if (index === 0) meta.textContent = source;
+    else meta.textContent = detail;
+    content.append(answer, meta);
+    step.append(number, content);
+    steps.append(step);
+  });
+  confidence.textContent = source;
+  mission.classList.remove('hidden');
+  mission.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+
 
 async function runCustomerChat(text) {
   run.disabled = true;

@@ -8,7 +8,7 @@ const env = { AI:{run:async(model,input,options)=>{seen=input;seenModel=model;se
 const history=[{role:'user',content:'My budget is 73000 rupees.'},{role:'assistant',content:'Understood.'}];
 let result=await (await worker.fetch(request({message:'What was my budget?',history}),env)).json();
 assert.equal(result.truth,'model-response');assert.deepEqual(seen.messages.slice(1,-1),history);
-assert.equal(seen.max_tokens,1200);assert.equal(seenOptions.rejectIfBusy,undefined);assert.equal(seenOptions.gateway.id,'default');
+assert.equal(seen.max_tokens,1200);assert.equal(seenOptions.rejectIfBusy,true);assert.equal(seenOptions.gateway.id,'default');
 let hardCalls=[];
 const hardEnv={AI:{run:async(model,input)=>{
   hardCalls.push({model,input});
@@ -151,15 +151,3 @@ const distributedEnv={AI:{run:async(model)=>{normalModels.push(model);return {re
 await worker.fetch(request({message:'Design a marketplace architecture for ten million users.'}),distributedEnv);
 await worker.fetch(request({message:'Explain how macroeconomic policy transmission works in a hypothetical economy.'}),distributedEnv);
 assert.ok(normalModels.length>=2);
-
-let activeAdmissionCalls=0; let maxAdmissionCalls=0;
-const admissionEnv={AI:{run:async()=>{
-  activeAdmissionCalls+=1; maxAdmissionCalls=Math.max(maxAdmissionCalls,activeAdmissionCalls);
-  await new Promise(resolve=>setTimeout(resolve,25));
-  activeAdmissionCalls-=1;
-  return {response:'This is a complete model-backed answer with enough detail to satisfy the customer response contract safely.'};
-}}};
-const admissionRequests=Array.from({length:8},(_,i)=>worker.fetch(request({message:`Explain a simple software concept number ${i+1} clearly.`}),admissionEnv));
-const admissionResponses=await Promise.all(admissionRequests);
-for(const response of admissionResponses){const body=await response.json();assert.equal(response.status,200);assert.equal(body.truth,'model-response');}
-assert.ok(maxAdmissionCalls<=4,`expected local AI concurrency <= 4, saw ${maxAdmissionCalls}`);

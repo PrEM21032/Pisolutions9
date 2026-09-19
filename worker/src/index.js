@@ -13,12 +13,15 @@ const COMPACT_OUTPUT_TOKENS = 900;
 const PROVIDER_TIMEOUT_MS = 20000;
 const EDGE_TIMEOUT_MS = 4000;
 const CHAT_REQUEST_BUDGET_MS = 20000;
-const HARD_REASONING_BUDGET_MS = 17500;
-const HARD_CANDIDATE_STAGE_MS = 8500;
-const HARD_CANDIDATE_TOKENS = 700;
-const HARD_FAST_PROBE_MS = 650;
-const HARD_REVIEW_STAGE_MS = 5500;
-const HARD_FINAL_STAGE_MS = 3500;
+const HARD_REASONING_BUDGET_MS = CHAT_REQUEST_BUDGET_MS;
+const HARD_CANDIDATE_STAGE_MS = 6500;
+const HARD_CANDIDATE_TOKENS = 1100;
+// A cold inference needs time to finish; a sub-second race only warms the cache.
+const HARD_FAST_PROBE_MS = 4500;
+const HARD_REVIEW_STAGE_MS = 12000;
+const HARD_REVIEW_TOKENS = 2200;
+const HARD_FINAL_STAGE_MS = 4500;
+const HARD_FINAL_TOKENS = 1200;
 const DEFAULT_EDGE_MODEL = '@cf/zai-org/glm-4.7-flash';
 const EDGE_MODEL_FALLBACKS = [
   '@cf/openai/gpt-oss-20b',
@@ -137,7 +140,10 @@ async function reviewHardAnswer(env,message,history,candidate,candidateModel,dea
   for(const model of reviewerModels){
     try{
       const timeLeft=remainingBudget(deadline);if(timeLeft<=0)return {ok:false,reason:'review_deadline_exceeded'};
-      const result=await runEdgeWithTimeout(env,model,reviewPrompt,history,{instructions:REVIEW_INSTRUCTIONS,maxTokens:700,timeoutMs:timeLeft});
+      // Reasoning tokens share the output budget. Never accept a truncated verdict
+      // or correction, even when its visible text begins with PASS or CORRECT.
+      const result=await runEdgeWithTimeout(env,model,reviewPrompt,history,{instructions:REVIEW_INSTRUCTIONS,maxTokens:HARD_REVIEW_TOKENS,timeoutMs:timeLeft});
+      if(edgeResultIncomplete(result,HARD_REVIEW_TOKENS))continue;
       const verdict=extractEdgeAnswer(result);
       if(!verdict)continue;
       if(/^PASS\s*$/i.test(verdict))return {ok:true,model};
@@ -152,14 +158,15 @@ async function reviewHardAnswer(env,message,history,candidate,candidateModel,dea
 async function verifyCorrectedHardAnswer(env,message,history,answer,excludedModels=[],deadline=Date.now()+HARD_FINAL_STAGE_MS){
   if(!env.AI||typeof env.AI.run!=='function')return {ok:false,reason:'verifier_unavailable'};
   const verificationPrompt=`QUESTION:\n${message}\n\nPROPOSED CORRECTED ANSWER:\n${answer}\n\nVerify independently.`;
-  const verifierModels=['@cf/openai/gpt-oss-20b','@cf/google/gemma-4-26b-a4b-it','@cf/qwen/qwen3-30b-a3b-fp8','@cf/zai-org/glm-4.7-flash'].filter(model=>!excludedModels.includes(model));
+  const verifierModels=['@cf/qwen/qwen3-30b-a3b-fp8','@cf/openai/gpt-oss-20b','@cf/zai-org/glm-4.7-flash','@cf/google/gemma-4-26b-a4b-it'].filter(model=>!excludedModels.includes(model));
   for(const model of verifierModels){
     try{
       const timeLeft=remainingBudget(deadline);if(timeLeft<=0)return {ok:false,reason:'verification_deadline_exceeded'};
-      const result=await runEdgeWithTimeout(env,model,verificationPrompt,history,{instructions:FINAL_VERIFY_INSTRUCTIONS,maxTokens:320,timeoutMs:timeLeft});
+      const result=await runEdgeWithTimeout(env,model,verificationPrompt,history,{instructions:FINAL_VERIFY_INSTRUCTIONS,maxTokens:HARD_FINAL_TOKENS,timeoutMs:timeLeft});
+      if(edgeResultIncomplete(result,HARD_FINAL_TOKENS))continue;
       const verdict=extractEdgeAnswer(result);
       if(!verdict)continue;
-      if(/^PASS\b/i.test(verdict))return {ok:true,model};
+      if(/^PASS\s*$/i.test(verdict))return {ok:true,model};
       if(/^REVISE\b/i.test(verdict))return {ok:false,model,reason:verdict};
     }catch(error){console.error('PI final verifier failed',model,error instanceof Error?error.message:String(error));}
   }
@@ -172,7 +179,8 @@ async function produceVerifiedHardAnswerCore(env,message,history){
   const first=await callWorkersAI(env,message,history,{preferStrong:true,instructions:HARD_REASONING_INSTRUCTIONS,deadline:candidateDeadline,maxTokens:HARD_CANDIDATE_TOKENS,fastProbeMs:HARD_FAST_PROBE_MS});
   if(!first)return {rejected:true,verificationReason:'hard_candidate_unavailable'};
   if(first.incomplete)return {rejected:true,verificationReason:'hard_candidate_incomplete'};
-  const reviewDeadline=Math.min(overallDeadline,Date.now()+HARD_REVIEW_STAGE_MS);
+  // Borrow unused candidate time while preserving the independent final check.
+  const reviewDeadline=Math.min(overallDeadline-HARD_FINAL_STAGE_MS,Date.now()+HARD_REVIEW_STAGE_MS);
   const review=await reviewHardAnswer(env,message,history,first.answer,first.model,reviewDeadline);
   if(review.ok)return {...first,verified:true,verifier:review.model};
   if(!review.correctedAnswer)return {...first,verified:false,provisional:true,verificationReason:review.reason||'review_inconclusive'};

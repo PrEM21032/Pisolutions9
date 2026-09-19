@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="PI — Think. Plan. Execute. With You." />
   <title>PI — Assistant</title>
-  <link rel="stylesheet" href="styles.css?v=20260919-console" />
+  <link rel="canonical" href="https://pisolutions9.github.io/Pisolutions9/" />
+  <link rel="stylesheet" href="styles.css?v=20260919-continuity" />
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="PI home"><span class="mark">π</span><span><strong>PI</strong><small>Think. Plan. Execute. With You.</small></span></a>
-      <div class="status"><span class="dot"></span><span id="systemStatus">Online</span></div>
+      <div class="status" data-state="idle" role="status"><span class="dot"></span><span id="systemStatus">Ready to ask</span></div>
     </header>
 
     <section class="workspace" aria-label="PI conversation">
@@ -31,9 +32,10 @@
     </section>
 
     <section class="composer-wrap" aria-label="Ask PI">
+      <p class="session-notice">This tab only · Owner sign-in and cross-device sync are not connected yet.</p>
       <div class="composer">
         <button id="clearChat" class="icon-button" type="button" title="New conversation" aria-label="New conversation">＋</button>
-        <textarea aria-label="Message to PI" maxlength="8000" id="command" placeholder="Ask me anything…" rows="1"></textarea>
+        <textarea aria-label="Message to PI" aria-describedby="sessionScope" maxlength="8000" id="command" placeholder="Ask me anything…" rows="1"></textarea>
         <button id="run" class="run" aria-label="Send">➜</button>
       </div>
       <div class="suggestions">
@@ -42,9 +44,10 @@
         <button data-command="Help me build a clear business plan.">Build a plan</button>
       </div>
       <p class="motto">BIG IDEAS. REAL RESULTS.</p>
+      <p class="site-reference" id="sessionScope"><a href="https://pisolutions9.github.io/Pisolutions9/">Official PI link</a> · Recent conversation stays in this tab; it does not move between devices.</p>
     </section>
     <input id="ownerToken" type="hidden" value="" />
   </main>
-  <script src="app.js?v=20260919-completion"></script>
+  <script type="module" src="app.js?v=20260919-continuity"></script>
 </body>
 </html>

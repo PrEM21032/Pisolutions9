@@ -1,3 +1,5 @@
+import { chatOutcome, transportOutcome } from './pi/customer-response.mjs';
+
 const command = document.querySelector('#command');
 const mission = document.querySelector('#mission');
 const missionTitle = document.querySelector('#missionTitle');
@@ -6,6 +8,25 @@ const confidence = document.querySelector('#confidence');
 const run = document.querySelector('#run');
 const ownerToken = document.querySelector('#ownerToken');
 const systemStatus = document.querySelector('#systemStatus');
+
+function setStatus(label, state = 'idle') {
+  systemStatus.textContent = label;
+  systemStatus.closest('.status').dataset.state = state;
+}
+const DRAFT_KEY = 'pi-v1-draft';
+const PENDING_KEY = 'pi-v1-pending-question';
+function saveDraft() { try { sessionStorage.setItem(DRAFT_KEY, command.value); } catch {} }
+function restoreDraft(text) {
+  // Preserve any new text the owner typed while the previous request was running.
+  if (!command.value.trim()) command.value = text;
+  saveDraft();
+  command.style.height = 'auto';
+  command.style.height = Math.min(command.scrollHeight, 140) + 'px';
+}
+try { command.value = sessionStorage.getItem(DRAFT_KEY) || sessionStorage.getItem(PENDING_KEY) || ''; } catch {}
+setStatus(navigator.onLine ? 'Ready to ask' : 'Offline', navigator.onLine ? 'idle' : 'blocked');
+window.addEventListener('offline', () => setStatus('Offline', 'blocked'));
+window.addEventListener('online', () => { if (!run.disabled) setStatus('Connection restored'); });
 
 
 const HISTORY_KEY = 'pi-v1-conversation';
@@ -17,8 +38,9 @@ function historyWindow() {
   for (const turn of [...conversation].reverse()) { if (turn.content.length > 12000 || size + turn.content.length > 30000) break; result.unshift(turn); size += turn.content.length; }
   return result.slice(-20);
 }
-function rememberTurn(role, content) {
-  conversation.push({ role, content }); conversation = historyWindow();
+function rememberTurn(role, content, artifacts = []) {
+  const savedArtifacts = artifacts.filter(isDownloadableArtifact).slice(0, 1).map(({ filename, mimeType, content }) => ({ filename, mimeType, content }));
+  conversation.push({ role, content, ...(savedArtifacts.length ? { artifacts: savedArtifacts } : {}) }); conversation = historyWindow();
   try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(conversation)); } catch {}
 }
 function syncWelcome() { const welcome = document.querySelector('#welcome'); if (welcome) welcome.classList.toggle('hidden', conversation.length > 0 || document.querySelector('#transcript').children.length > 0); }
@@ -28,13 +50,19 @@ function addTranscript(role, text) {
   const content = document.createElement('div'); content.className = 'chat-content'; content.textContent = text;
   card.append(label, content); document.querySelector('#transcript').append(card); syncWelcome(); return card;
 }
+function isDownloadableArtifact(artifact) {
+  return Boolean(artifact && artifact.filename === 'inventory.csv' && artifact.mimeType === 'text/csv;charset=utf-8' && typeof artifact.content === 'string' && artifact.content.length <= 100000);
+}
 function downloadArtifact(artifact, card) {
-  if (artifact.filename !== 'inventory.csv' || artifact.mimeType !== 'text/csv;charset=utf-8' || typeof artifact.content !== 'string' || artifact.content.length > 100000) return;
+  if (!isDownloadableArtifact(artifact)) return;
   const url = URL.createObjectURL(new Blob([artifact.content], { type: artifact.mimeType })); artifactUrls.push(url);
   const link = document.createElement('a'); link.href = url; link.download = artifact.filename; link.textContent = 'Download ' + artifact.filename; link.className = 'download'; card.append(link);
 }
-for (const turn of conversation) addTranscript(turn.role, turn.content);
-document.querySelector('#clearChat').addEventListener('click', () => { conversation = []; try { sessionStorage.removeItem(HISTORY_KEY); } catch {} document.querySelector('#transcript').replaceChildren(); for (const url of artifactUrls) URL.revokeObjectURL(url); artifactUrls.length = 0; mission.classList.add('hidden'); syncWelcome(); });
+for (const turn of conversation) {
+  const card = addTranscript(turn.role, turn.content);
+  if (turn.role === 'assistant' && Array.isArray(turn.artifacts)) for (const artifact of turn.artifacts.slice(0, 1)) downloadArtifact(artifact, card);
+}
+document.querySelector('#clearChat').addEventListener('click', () => { conversation = []; try { sessionStorage.removeItem(HISTORY_KEY); sessionStorage.removeItem(PENDING_KEY); } catch {} document.querySelector('#transcript').replaceChildren(); for (const url of artifactUrls) URL.revokeObjectURL(url); artifactUrls.length = 0; mission.classList.add('hidden'); syncWelcome(); setStatus(navigator.onLine ? 'Ready to ask' : 'Offline', navigator.onLine ? 'idle' : 'blocked'); });
 
 const DOMAIN_RULES = [
   { name: 'business', pattern: /business|market|sales|customer|revenue|export|import|price|profit|investment/i, tasks: ['define_business_goal', 'identify_constraints', 'build_decision_matrix'] },
@@ -153,7 +181,7 @@ function runLocalMission(text, note = 'Local zero-cost mode') {
   } else {
     showCustomerResponse(text, { title: 'PI', message: 'PI’s live answer service is temporarily unavailable. Please try again in a moment.' }, plan, 'PI');
   }
-  systemStatus.textContent = 'PI ready';
+  setStatus('Local reply only', 'limited');
 }
 
 function chatApiUrl() {
@@ -163,34 +191,39 @@ function chatApiUrl() {
 }
 
 async function runCustomerChat(text) {
+  try { sessionStorage.setItem(PENDING_KEY, text); } catch {}
   run.disabled = true;
   document.querySelector('#clearChat').disabled = true;
-  systemStatus.textContent = 'PI working…';
-  const history = historyWindow();
-  addTranscript('user', text);
+  setStatus('PI working…', 'working');
+  const history = historyWindow().map(({ role, content }) => ({ role, content }));
+  const userCard = addTranscript('user', text);
+  const pending = document.createElement('p');
+  pending.className = 'pending-response'; pending.textContent = 'PI is working on your request…';
+  pending.setAttribute('role', 'status'); userCard.append(pending);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 65000);
   try {
     const response = await fetch(chatApiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text, history }), signal: controller.signal });
     const body = await response.json();
-    if (!response.ok || !body.answer) throw new Error(body.error || 'chat_unavailable');
-    const incomplete = body.status === 'incomplete';
-    const message = incomplete ? body.answer + '\n\nThis answer reached its output limit and is incomplete. Ask for a shorter response or the next section.' : body.answer;
-    const card = addTranscript('assistant', message);
+    const outcome = chatOutcome(response, body);
+    const card = addTranscript('assistant', outcome.answer);
     const note = document.createElement('small');
-    note.textContent = body.truth === 'verified-calculation' ? 'CSV checked: rows and totals independently recomputed.' : body.truth === 'deterministic' ? 'Limited offline recovery; live model unavailable.' : body.truth === 'needs-input' ? 'Waiting for valid inventory rows.' : 'Model answer · facts not independently checked';
+    note.textContent = outcome.note;
     card.append(note);
-    if (body.truth === 'verified-calculation' && body.status === 'completed') for (const artifact of body.artifacts || []) downloadArtifact(artifact, card);
-    rememberTurn('user', text); rememberTurn('assistant', message);
+    for (const artifact of outcome.artifacts) downloadArtifact(artifact, card);
+    if (outcome.remember) { rememberTurn('user', text); rememberTurn('assistant', outcome.answer, outcome.artifacts); }
+    if (outcome.restoreDraft) restoreDraft(text);
     mission.classList.add('hidden');
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    systemStatus.textContent = incomplete ? 'Answer incomplete' : 'PI ready';
-    return !incomplete && body.ok === true;
+    setStatus(outcome.label, outcome.state);
+    return outcome.complete;
   } catch (error) {
-    addTranscript('assistant', error.name === 'AbortError' ? 'The answer service took too long. Please try again.' : 'PI’s live answer service is temporarily unavailable. Please try again in a moment.');
-    systemStatus.textContent = 'Request failed';
+    const outcome = transportOutcome(error, navigator.onLine);
+    addTranscript('assistant', outcome.answer);
+    restoreDraft(text);
+    setStatus(outcome.label, outcome.state);
     return false;
-  } finally { clearTimeout(timer); document.querySelector('#clearChat').disabled = false; run.disabled = false; }
+  } finally { clearTimeout(timer); pending.remove(); try { sessionStorage.removeItem(PENDING_KEY); } catch {} document.querySelector('#clearChat').disabled = false; run.disabled = false; }
 }
 
 async function runCloudMission(text) {
@@ -213,15 +246,16 @@ async function runCloudMission(text) {
   } finally { run.disabled = false; }
 }
 
-document.querySelectorAll('[data-command]').forEach(button => button.addEventListener('click', () => { command.value = button.dataset.command; command.focus(); }));
+document.querySelectorAll('[data-command]').forEach(button => button.addEventListener('click', () => { command.value = button.dataset.command; saveDraft(); command.focus(); }));
 run.addEventListener('click', () => {
   const text = command.value.trim();
   if (!text || run.disabled) { command.focus(); return; }
   command.value = '';
+  saveDraft();
   command.style.height = 'auto';
   runCloudMission(text);
 });
 
-command.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); run.click(); } });
-command.addEventListener('input', () => { command.style.height = 'auto'; command.style.height = Math.min(command.scrollHeight, 140) + 'px'; });
+command.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); run.click(); } });
+command.addEventListener('input', () => { saveDraft(); command.style.height = 'auto'; command.style.height = Math.min(command.scrollHeight, 140) + 'px'; });
 syncWelcome();

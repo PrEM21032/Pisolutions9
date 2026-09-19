@@ -70,6 +70,16 @@ jobs:
             -H 'origin: https://prem21032.github.io' \
             -H 'access-control-request-method: POST' \
             -H 'access-control-request-headers: content-type' "$endpoint" | tr -d '\r' | grep -i '^access-control-allow-origin:' | sed 's/^[^:]*: //' | xargs)" = 'https://prem21032.github.io'
+      - name: Customer landing root smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='https://pi-chat.premchandyadlapati.workers.dev/'
+          body="$(curl --silent --show-error --location --max-time 15 --write-out '\n%{http_code}' "$root")"
+          status="${body##*$'\n'}"
+          content="${body%$'\n'*}"
+          test "$status" = 200
+          grep -F 'prem21032.github.io/Pisolutions9' <<< "$content"
       - name: Live customer chat smoke test
         shell: bash
         run: |

@@ -76,10 +76,10 @@ jobs:
             cat /tmp/pi-chat.json
             python -c 'import json,sys; status=int(sys.argv[1]); d=json.load(open("/tmp/pi-chat.json")); answer=d.get("answer"); assert isinstance(answer,str) and answer.strip(); safe_refusal=(status==503 and d.get("ok") is False and d.get("status")=="verification_failed" and d.get("error")=="hard_reasoning_not_verified" and d.get("truth")=="unknown"); success=(status==200 and d.get("ok") is True); assert success or safe_refusal, f"unexpected contract: HTTP {status} {d}"; a=answer.lower().lstrip(); forbidden_prefixes=("classification: business_objective","classification: informational","classification:"); forbidden_phrases=("i recognized this as an informational question","i will answer directly when the required knowledge is available.","temporarily operating in verified recovery mode"); assert not a.startswith(forbidden_prefixes) and not any(x in a for x in forbidden_phrases); print("SAFE_REFUSAL" if safe_refusal else "ANSWER_LENGTH", "" if safe_refusal else len(answer)); print("ANSWER", answer)' "$status"
             answers+=("$(python -c 'import json; print(json.load(open("/tmp/pi-chat.json"))["answer"])')")
-            if [ "$index" -ge 7 ] && [ "$status" = 200 ]; then
-              python -c 'import json; a=json.load(open("/tmp/pi-chat.json"))["answer"].strip(); assert len(a)>=160, f"complex answer too short: {len(a)}"'
+            if [ "$index" -ge 7 ]; then
+              python -c 'import json,sys; status=int(sys.argv[1]); d=json.load(open("/tmp/pi-chat.json")); a=d.get("answer","").strip(); assert status==200 and d.get("ok") is True, f"complex readiness requires a successful answer, got HTTP {status}: {d}"; assert d.get("truth") in ("verified-model-response","model-response"), f"complex readiness rejects provisional/degraded truth: {d.get("truth")}"; assert d.get("truth") != "provisional-model-response"; assert len(a)>=160, f"complex answer too short: {len(a)}"' "$status"
             fi
           done
           test "${#answers[@]}" = 11
           for ((i=0; i<${#answers[@]}; i++)); do test -n "${answers[$i]}"; done
-          echo "Complex customer-input stress test passed for $complex_questions multi-part questions."
+          echo "Complex customer-input stress test passed for $complex_questions multi-part questions with no provisional/degraded responses."

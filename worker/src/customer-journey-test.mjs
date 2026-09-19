@@ -33,7 +33,7 @@ assert.equal(hardResponse.status,200);assert.equal(hardBody.truth,'verified-mode
 assert.equal(hardCalls[0].model,'@cf/zai-org/glm-4.7-flash');
 assert.equal(hardCalls[1].model,'@cf/openai/gpt-oss-20b');
 assert.notEqual(hardCalls[0].model,hardCalls[1].model);
-assert.equal(hardCalls[0].input.max_tokens,700);
+assert.equal(hardCalls[0].input.max_tokens,1100);
 assert.match(hardCalls[0].input.messages[0].content,/350-500 words/i);
 assert.match(hardCalls[0].input.messages[0].content,/net burn/i);
 assert.match(hardCalls[0].input.messages[0].content,/source of truth/i);
@@ -183,3 +183,43 @@ const distributedEnv={AI:{run:async(model)=>{normalModels.push(model);return {re
 await worker.fetch(request({message:'Design a marketplace architecture for ten million users.'}),distributedEnv);
 await worker.fetch(request({message:'Explain how macroeconomic policy transmission works in a hypothetical economy.'}),distributedEnv);
 assert.ok(normalModels.length>=2);
+
+// Cold inference must complete without relying on an abandoned call warming cache.
+let coldCalls=0;
+const coldBody=await (await worker.fetch(request({message:'Calculate cold-path runway.'}),{AI:{run:async(_model,input)=>{
+  coldCalls++;
+  if(input.messages[0].content.includes('independent reviewer'))return {response:'PASS',finish_reason:'stop'};
+  await new Promise(resolve=>setTimeout(resolve,800));
+  return {response:'Cash divided by constant net burn gives the baseline runway.',finish_reason:'stop'};
+}}})).json();
+assert.equal(coldBody.truth,'verified-model-response');
+assert.equal(coldCalls,2);
+
+// A complete review can use time the candidate did not consume.
+const delayedReview=await (await worker.fetch(request({message:'Calculate a review-budget scenario.'}),{AI:{run:async(_model,input)=>{
+  if(input.messages[0].content.includes('independent reviewer')){
+    await new Promise(resolve=>setTimeout(resolve,5700));
+    return {response:'PASS',finish_reason:'stop',usage:{completion_tokens:850}};
+  }
+  return {response:'A complete candidate answer.',finish_reason:'stop'};
+}}})).json();
+assert.equal(delayedReview.truth,'verified-model-response');
+
+// Truncated output cannot certify an answer, including a visible PASS prefix.
+for(const verdict of ['PASS','CORRECT\nAn incomplete correction']){
+ const incomplete=await (await worker.fetch(request({message:'Calculate truncated-review scenario.'}),{AI:{run:async(_model,input)=>{
+   if(input.messages[0].content.includes('independent reviewer'))return {response:verdict,finish_reason:'length'};
+   return {response:'Candidate answer.',finish_reason:'stop'};
+ }}})).json();
+ assert.notEqual(incomplete.truth,'verified-model-response');
+}
+for(const verdict of ['PASS but arithmetic is wrong','PASS']){
+ const finalIncomplete=await (await worker.fetch(request({message:'Calculate final-verifier scenario.'}),{AI:{run:async(_model,input)=>{
+   const system=input.messages[0].content;
+   if(system.includes('independent reviewer'))return {response:'CORRECT\nA complete corrected answer.',finish_reason:'stop'};
+   if(system.includes('final independent verifier'))return {response:verdict,finish_reason:verdict==='PASS'?'length':'stop'};
+   return {response:'Candidate answer.',finish_reason:'stop'};
+ }}})).json();
+ assert.notEqual(finalIncomplete.truth,'verified-model-response');
+}
+console.log('Hard review regressions PASS: cold inference, borrowed review budget, truncated and ambiguous verdicts fail closed.');

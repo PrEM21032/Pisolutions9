@@ -161,6 +161,28 @@ function compactShoppingQuery(message=''){
     .slice(0,220);
 }
 
+function shoppingSearchLinkAnswer(message=''){
+  if(!requiresShoppingEvidence(message))return null;
+  const domain=shoppingRetailerDomain(message);
+  const query=compactShoppingQuery(message)||String(message).slice(0,220);
+  let url='';
+  let title='';
+  if(domain==='amazon.com'){url='https://www.amazon.com/s?k='+encodeURIComponent(query);title='Search Amazon';}
+  else if(domain==='walmart.com'){url='https://www.walmart.com/search?q='+encodeURIComponent(query);title='Search Walmart';}
+  else if(domain==='ebay.com'){url='https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(query);title='Search eBay';}
+  else if(domain==='bestbuy.com'){url='https://www.bestbuy.com/site/searchpage.jsp?st='+encodeURIComponent(query);title='Search Best Buy';}
+  else if(domain==='target.com'){url='https://www.target.com/s?searchTerm='+encodeURIComponent(query);title='Search Target';}
+  else {url='https://www.google.com/search?tbm=shop&q='+encodeURIComponent(query);title='Search Google Shopping';}
+  return {
+    ok:true,
+    status:'answered',
+    answer:'I prepared a direct shopping search link for this request. Current item availability and price are not independently verified because a live shopping-data connector is not available for this request.',
+    source:'pi-shopping-search-link',
+    truth:'retailer-search-link',
+    sources:[{url,title}]
+  };
+}
+
 async function directShoppingAnswer(env,message=''){
   if(!env.SERPAPI_API_KEY||!requiresShoppingEvidence(message))return null;
   try{
@@ -499,10 +521,14 @@ export default{async fetch(request,env){const url=new URL(request.url);const ori
   }
 
   if(!env.OPENAI_API_KEY&&!env.GROQ_API_KEY){
+    const shoppingFallback=shoppingSearchLinkAnswer(message);
+    if(shoppingFallback)return json(shoppingFallback,200,request);
     return json({ok:false,status:'live_evidence_required',error:'live_data_connector_not_configured',answer:'I need a live data source to answer that accurately. I will not guess or present model memory as current data.',truth:'unknown'},503,request);
   }
   const failure=lastLiveFailure?.failure||{error:'live_research_provider_unavailable',status:503};
   const headers=lastLiveFailure?.response&&failure.error==='chat_provider_rate_limited'?rateLimitHeaders(lastLiveFailure.response):{};
+  const shoppingFallback=shoppingSearchLinkAnswer(message);
+  if(shoppingFallback)return json(shoppingFallback,200,request,headers);
   return json({ok:false,status:'live_evidence_required',error:failure.error,answer:'PI could not verify current information from the available live research providers, so it will not guess.',truth:'unknown'},failure.status||503,request,headers);
 }
 const hardReasoning=requiresHardReasoning(effectiveMessage);

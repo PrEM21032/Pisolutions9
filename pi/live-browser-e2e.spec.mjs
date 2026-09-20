@@ -50,6 +50,9 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
     expect.soft(engineering.answer).toMatch(/idempoten/i);
     expect.soft(engineering.answer).toMatch(/duplicate|double/i);
     expect.soft(engineering.answer).toMatch(/retry/i);
+    expect.soft(engineering.answer).toMatch(/same|reuse|stable/i);
+    expect.soft(engineering.answer).toMatch(/client/i);
+    expect.soft(engineering.answer).toMatch(/stored|persist|replay|original result|original response/i);
 
     const research = await ask(
       'research',

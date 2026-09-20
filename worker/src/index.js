@@ -266,6 +266,7 @@ export default{async fetch(request,env){const url=new URL(request.url);const ori
         const answer=extractAnswer(body);
         const sources=extractSources(body);
         if(answer&&sources.length)return json({ok:true,status:'answered',answer,source:`pi-chat-web:${model}`,truth:'web-grounded-model-response',sources},200,request);
+        if(answer&&/\?\s*$/.test(answer))return json({ok:true,status:'clarification_needed',answer,source:`pi-chat-web:${model}`,truth:'model-response',sources:[]},200,request);
         lastLiveFailure={failure:{error:answer?'live_research_unverified':'empty_live_research_response',status:503},provider:'openai',model};
       }catch(error){
         markProviderFailure('openai','chat_provider_network_error');
@@ -296,6 +297,7 @@ export default{async fetch(request,env){const url=new URL(request.url);const ori
         const answer=extractAnswer(body);
         const sources=extractGroqSources(body);
         if(answer&&sources.length)return json({ok:true,status:'answered',answer,source:`pi-chat-web-groq:${model}`,truth:'web-grounded-model-response',sources},200,request);
+        if(answer&&/\?\s*$/.test(answer))return json({ok:true,status:'clarification_needed',answer,source:`pi-chat-web-groq:${model}`,truth:'model-response',sources:[]},200,request);
         lastLiveFailure={failure:{error:answer?'live_research_unverified':'empty_live_research_response',status:503},provider:'groq',model};
       }
     }catch(error){

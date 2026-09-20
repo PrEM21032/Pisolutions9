@@ -178,7 +178,7 @@ jobs:
           page='https://pisolutions9.github.io/Pisolutions9/'
           for attempt in {1..18}; do
             body="$(curl --silent --show-error --location --max-time 15 "$page" || true)"
-            if grep -q 'data-pi-release="v1.02-provider-resilience"' <<<"$body"; then
+            if grep -q 'data-pi-release="v1.02-live-research-resilience"' <<<"$body"; then
               echo 'Canonical customer page is serving the V1.02 release surface.'
               exit 0
             fi

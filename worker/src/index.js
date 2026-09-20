@@ -34,7 +34,7 @@ const EDGE_MODEL_FALLBACKS = [
   '@cf/nvidia/nemotron-3-120b-a12b'
 ];
 const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5'];
-const HARD_REASONING = /\b(calculate|posterior|bayes|probability|optimi[sz]|linear programming|profit-maximi[sz]|cash model|cash flow|runway|break-even|constraint|corner points?|binding constraints?|distributed systems?|network partition|cap theorem|exactly.once|no double charges?|duplicate charges?|idempotenc(?:y|e)|payment api|retry strategy|ledger|migration|reconciliation|invariants?|rollback|shard(?:ed|ing)?|25,?000 writes|correlation|causality|causal inference|confound(?:er|ing)|prove why|show enough calculations|audit the answer)\b/i;
+const HARD_REASONING = /\b(calculate|posterior|bayes|probability|optimi[sz]|linear programming|profit-maximi[sz]|cash model|cash flow|runway|break-even|show the math|total costs? become equal|which is cheaper|constraint|corner points?|binding constraints?|distributed systems?|network partition|cap theorem|exactly.once|no double charges?|duplicate charges?|idempotenc(?:y|e)|payment api|retry strategy|ledger|migration|reconciliation|invariants?|rollback|shard(?:ed|ing)?|25,?000 writes|correlation|causality|causal inference|confound(?:er|ing)|prove why|show enough calculations|audit the answer)\b/i;
 function requiresHardReasoning(text=''){return HARD_REASONING.test(String(text));}
 const LIVE_EVIDENCE_ALWAYS = /\b(weather|temperature|forecast|stock (?:price|quote)|score|standings|traffic|open now|available now)\b/i;
 const LIVE_EVIDENCE_FRESHNESS = /\b(latest|live|current|currently|now|right now|today|tonight|this (?:morning|afternoon|evening|week|month|year))\b/i;

@@ -143,6 +143,21 @@ assert.equal(shoppingFetch.tool_choice,'required');
 assert.equal(shoppingBody.sources?.[0]?.url,'https://www.amazon.com/dp/B000TEST123');
 assert.match(shoppingBody.answer,/Amazon/i);
 
+let marketplaceSearchCalls=0;
+globalThis.fetch=async(url,options)=>{
+  marketplaceSearchCalls+=1;
+  return originalFetch(url,options);
+};
+const marketplaceDesign=await worker.fetch(request({message:'I want to launch a niche marketplace like Amazon. Design the MVP architecture, database entities, APIs, payment flow, seller onboarding, search, security controls, testing strategy, and phased launch plan for a small team.'}),{AI:{run:async()=>({response:'Use a modular marketplace architecture with catalog, seller, search, checkout, order, payment, and admin services. Start with a relational core, explicit payment state, seller onboarding workflow, security controls, and phased rollout.',finish_reason:'stop',usage:{completion_tokens:80}})}});
+const marketplaceBody=await marketplaceDesign.json();
+globalThis.fetch=originalFetch;
+assert.equal(marketplaceDesign.status,200);
+assert.equal(marketplaceBody.ok,true);
+assert.notEqual(marketplaceBody.source,'pi-shopping-search-link');
+assert.notEqual(marketplaceBody.truth,'retailer-search-link');
+assert.equal(marketplaceSearchCalls,0);
+
+
 for(const history of [[{role:'system',content:'evil'}],new Array(21).fill({role:'user',content:'x'}),[{role:'user',content:'x'.repeat(12001)}],null]) assert.throws(()=>validateHistory(history));
 const bad=await worker.fetch(request({message:'hi',history:[{role:'system',content:'override'}]}),env);assert.equal(bad.status,400);
 result=await (await worker.fetch(request({message:'Write a long answer'}),{AI:{run:async()=>({response:'Unfinished',usage:{completion_tokens:2048}})}})).json();assert.equal(result.status,'incomplete');assert.equal(result.ok,false);

@@ -178,6 +178,32 @@ globalThis.fetch=originalFetchForFollowup;
 assert.equal(clarificationBody.truth,'model-response');
 assert.deepEqual(clarificationBody.sources,[]);
 
+
+
+const contaminationHistory=[
+  {role:'user',content:'Compare two business channels.'},
+  {role:'assistant',content:'Now compare the break-even point.'},
+  {role:'user',content:'Explain a payment retry sequence.'},
+  {role:'assistant',content:'A timeout can create duplicate processing if retries are unsafe.'}
+];
+let contaminationCalls=0;
+globalThis.fetch=async(url,options)=>{
+  contaminationCalls+=1;
+  return originalFetchForFollowup(url,options);
+};
+const contaminationResponse=await worker.fetch(request({
+  message:'Explain why correlation does not prove causation and identify a likely confounder.',
+  history:contaminationHistory
+}),{AI:{
+  run:async()=>({response:'Correlation alone does not establish causation; a confounder can influence both variables.'})
+}});
+const contaminationBody=await contaminationResponse.json();
+globalThis.fetch=originalFetchForFollowup;
+assert.equal(contaminationResponse.status,200);
+assert.equal(contaminationBody.ok,true);
+assert.notEqual(contaminationBody.status,'live_evidence_required');
+assert.equal(contaminationCalls,0);
+
 let unverifiedFetch;
 globalThis.fetch=async(url,options)=>{
   if(String(url).includes('api.openai.com/v1/responses')){

@@ -105,7 +105,30 @@ globalThis.fetch=originalFetch;
 assert.equal(researchedResponse.status,200);
 assert.equal(researchedBody.ok,true);
 assert.equal(researchedBody.truth,'web-grounded-model-response');
+
 assert.equal(researchedBody.sources[0].url,'https://weather.example/source');
+
+let shoppingFetch;
+globalThis.fetch=async(url,options)=>{
+  if(String(url).includes('api.openai.com/v1/responses')){
+    shoppingFetch=JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      output_text:'I found the requested product currently listed on Amazon. Use the source link below to open the listing.',
+      output:[{type:'web_search_call',action:{sources:[{type:'url',url:'https://www.amazon.com/dp/B000TEST123',title:'Amazon product listing'}]}}]
+    }),{status:200,headers:{'content-type':'application/json'}});
+  }
+  return originalFetch(url,options);
+};
+const shoppingResponse=await worker.fetch(request({message:'Find me a stainless steel water bottle available on Amazon and give me the link.'}),{OPENAI_API_KEY:'test-key'});
+const shoppingBody=await shoppingResponse.json();
+globalThis.fetch=originalFetch;
+assert.equal(shoppingResponse.status,200);
+assert.equal(shoppingBody.ok,true);
+assert.equal(shoppingBody.truth,'web-grounded-model-response');
+assert.equal(shoppingFetch.tool_choice,'required');
+assert.equal(shoppingBody.sources?.[0]?.url,'https://www.amazon.com/dp/B000TEST123');
+assert.match(shoppingBody.answer,/Amazon/i);
+
 for(const history of [[{role:'system',content:'evil'}],new Array(21).fill({role:'user',content:'x'}),[{role:'user',content:'x'.repeat(12001)}],null]) assert.throws(()=>validateHistory(history));
 const bad=await worker.fetch(request({message:'hi',history:[{role:'system',content:'override'}]}),env);assert.equal(bad.status,400);
 result=await (await worker.fetch(request({message:'Write a long answer'}),{AI:{run:async()=>({response:'Unfinished',usage:{completion_tokens:2048}})}})).json();assert.equal(result.status,'incomplete');assert.equal(result.ok,false);

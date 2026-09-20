@@ -40,10 +40,16 @@ const LIVE_EVIDENCE_ALWAYS = /\b(weather|temperature|forecast|stock (?:price|quo
 const LIVE_EVIDENCE_FRESHNESS = /\b(latest|live|current|currently|now|right now|today|tonight|this (?:morning|afternoon|evening|week|month|year))\b/i;
 const LIVE_EVIDENCE_DYNAMIC_DOMAIN = /\b(weather|temperature|forecast|price|stock|market|score|standings|news|traffic|availability|available|open|election results?|sports?|flight status|exchange rate|date|time|utc|timezone|time zone|product|item|amazon|walmart|ebay|best buy|target|shopping|store)\b/i;
 function requiresShoppingEvidence(text=''){
-  const value=String(text);
-  const action=/\b(find|search|shop|shopping|buy|purchase|order|available|availability|in stock|price|deal|link|listing)\b/i.test(value);
-  const commerce=/\b(product|item|amazon|walmart|ebay|best buy|target|store|retailer)\b/i.test(value);
-  return action&&commerce;
+  const value=String(text).trim();
+  const lower=value.toLowerCase();
+  const explicitBuyerIntent=/\b(buy|purchase|order|shop(?:ping)? for|find me|find (?:a|an|the)\b|available(?: on| at| now)?|availability|in stock|price(?: of| for)?|deal(?:s)?(?: on| for)?|give me (?:the |a )?link|product link|listing)\b/i.test(value);
+  const productObject=/\b(product|item|bottle|phone|laptop|headphones?|shoes?|shirt|tv|camera|watch|charger|case|book|tool|appliance|furniture|grocery|groceries)\b/i.test(value);
+  const retailer=/\b(amazon|walmart|ebay|best buy|target|retailer|store)\b/i.test(value);
+  const builderContext=/\b(build|design|develop|architecture|api|database|seller onboarding|marketplace|website|app|platform|system|search (?:feature|engine|api|service|functionality)|like amazon)\b/i.test(value);
+  if(builderContext&&!productObject&&!/\b(buy|purchase|order|find me|in stock|price|deal|product link|listing)\b/i.test(value))return false;
+  if(explicitBuyerIntent&&(productObject||retailer))return true;
+  const retailerSearchPhrase=/(?:search|find)\s+(?:on\s+)?(?:amazon|walmart|ebay|best buy|target)\b/i.test(lower);
+  return retailerSearchPhrase;
 }
 function requiresLiveEvidence(text=''){
   const value=String(text);

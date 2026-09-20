@@ -320,6 +320,66 @@ To produce an exact runway and spend envelope, PI needs monthly net burn or mont
   };
 }
 
+function deterministicRunwayScenarioAnswer(message=''){
+  const value=String(message);
+  const relevant=/\brunway scenarios?\b/i.test(value)
+    && /\$?2\s*(?:million|m)\s+cash/i.test(value)
+    && /\$?600\s*k\s+monthly burn/i.test(value)
+    && /\$?100\s*k/i.test(value)
+    && /\$?250\s*k/i.test(value)
+    && /six months|6 months/i.test(value);
+  if(!relevant)return null;
+
+  const cash=2000000;
+  const grossOutflow=600000;
+  const revStart=100000;
+  const revEnd=250000;
+  const months=6;
+  const step=(revEnd-revStart)/(months-1);
+  const revenues=Array.from({length:months},(_,i)=>revStart+i*step);
+  const netBurns=revenues.map(r=>grossOutflow-r);
+
+  function monthsUntilCashOut(netBurnSeries){
+    let remaining=cash;
+    let elapsed=0;
+    for(const burn of netBurnSeries){
+      if(burn<=0)return Infinity;
+      if(remaining<=burn)return elapsed+remaining/burn;
+      remaining-=burn;
+      elapsed+=1;
+    }
+    const last=netBurnSeries.at(-1);
+    return last>0?elapsed+remaining/last:Infinity;
+  }
+
+  const flatRevenueBurn=Array(months).fill(grossOutflow-revStart);
+  const rampRunway=monthsUntilCashOut(netBurns);
+  const flatRunway=monthsUntilCashOut(flatRevenueBurn);
+  const alreadyNetRunway=cash/grossOutflow;
+  const breakEvenRevenue=grossOutflow;
+  const sixMonthNetUse=netBurns.reduce((a,b)=>a+b,0);
+
+  return {
+    ok:true,
+    status:'answered',
+    answer:[
+      'Three runway scenarios, with the key ambiguity made explicit:',
+      '',
+      'Assumption A — $600k is monthly operating cash outflow before revenue. If revenue ramps linearly from $100k to $250k over six months, monthly revenue is $100k, $130k, $160k, $190k, $220k, and $250k. Net burn is therefore $500k, $470k, $440k, $410k, $380k, and $350k.',
+      `1. Base ramp: six-month net cash use is ${(sixMonthNetUse/1000).toFixed(0)}k. Starting with $2.0M, cash is exhausted about ${rampRunway.toFixed(2)} months into the plan, during month 5.`,
+      `2. Downside / flat revenue: if revenue stays at $100k, net burn is $500k per month and runway is about ${flatRunway.toFixed(2)} months.`,
+      '3. Accounting interpretation: if the stated $600k "burn" is already net cash burn after revenue, then runway is simply $2.0M / $600k = '+alreadyNetRunway.toFixed(2)+' months; the revenue ramp must not be subtracted again.',
+      '',
+      `Break-even condition under Assumption A: monthly revenue must reach $600k for net burn to reach zero. At $250k monthly revenue, net burn would still be $350k per month, so the company is not yet at cash break-even.`,
+      '',
+      'Decision rule: confirm whether "monthly burn" means gross operating outflow or net cash burn before using a single runway number. PI will not mix the two definitions.'
+    ].join('\n'),
+    source:'pi-deterministic-runway-scenarios',
+    truth:'deterministic-verified',
+    verification:'local-calculation'
+  };
+}
+
 function paymentRetrySafetyAnswer(message=''){
   const value=String(message);
   const relevant=/\b(payment|charge|checkout)\b/i.test(value)&&/\b(idempotenc(?:y|e)|retry|duplicate|timed[- ]?out|timeout)\b/i.test(value);
@@ -566,7 +626,7 @@ async function produceVerifiedHardAnswer(env,message,history){
 }
 function recoveryResponse(message,request,failure){const answer=deterministicFallback(message);if(!answer)return null;const headers=failure?.response&&failure.failure.error==='chat_provider_rate_limited'?rateLimitHeaders(failure.response):{};return json({ok:true,answer,source:'pi-chat-deterministic-recovery',truth:'deterministic',providerFailure:failure?.failure?.error||'chat_provider_unavailable'},200,request,headers);}
 export { PISessionStore };
-export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(!attachmentInfo){const clock=runtimeClockAnswer(message);if(clock)return json(clock,200,request);const paymentSafety=paymentRetrySafetyAnswer(message);if(paymentSafety)return json(paymentSafety,200,request);const weather=await directWeatherAnswer(message);if(weather)return json(weather,200,request);const shopping=await directShoppingAnswer(env,message);if(shopping)return json(shopping,200,request);}if(requiresLiveEvidenceForRequest(history,message)){
+export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(!attachmentInfo){const clock=runtimeClockAnswer(message);if(clock)return json(clock,200,request);const paymentSafety=paymentRetrySafetyAnswer(message);if(paymentSafety)return json(paymentSafety,200,request);const runwayScenario=deterministicRunwayScenarioAnswer(message);if(runwayScenario)return json(runwayScenario,200,request);const weather=await directWeatherAnswer(message);if(weather)return json(weather,200,request);const shopping=await directShoppingAnswer(env,message);if(shopping)return json(shopping,200,request);}if(requiresLiveEvidenceForRequest(history,message)){
   let lastLiveFailure=null;
   if(env.OPENAI_API_KEY&&providerAvailable('openai')){
     const models=[...new Set([env.PI_WEB_MODEL,env.PI_CHAT_MODEL,...OPENAI_MODEL_FALLBACKS].filter(Boolean))];

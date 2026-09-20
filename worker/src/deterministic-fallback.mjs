@@ -70,7 +70,7 @@ export function deterministicFallback(message) {
   const complex = complexRecovery(text);
   if (complex) return complex;
 
-  if (/\b(build|create|make|launch)\b/.test(text) && /\b(website|web site|store|marketplace|amazon)\b/.test(text)) {
+  if (/\b(build|create|make|launch)\b/.test(text) && (/\b(store|marketplace|amazon|e-?commerce|shop)\b/.test(text) || (/\b(website|web site)\b/.test(text) && /\b(products?|catalog|cart|checkout|seller)\b/.test(text)))) {
     return [
       'Recovery result: here is a concrete marketplace MVP blueprint you can build from without pretending deployment happened.',
       '',

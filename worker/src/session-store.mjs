@@ -26,7 +26,13 @@ function sanitizeConversation(value) {
     if (!turn || !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string' || turn.content.length > MAX_TURN) throw new Error('session_invalid');
     total += turn.content.length;
     if (total > MAX_TOTAL) throw new Error('session_too_large');
-    return { role: turn.role, content: turn.content };
+    const sources = turn.role === 'assistant' && Array.isArray(turn.sources)
+      ? turn.sources.filter(source => source && typeof source.url === 'string' && /^https:\/\//.test(source.url)).slice(0, 8).map(source => ({
+          url: source.url.slice(0, 2000),
+          title: typeof source.title === 'string' ? source.title.slice(0, 200) : ''
+        }))
+      : [];
+    return { role: turn.role, content: turn.content, ...(sources.length ? { sources } : {}) };
   });
 }
 

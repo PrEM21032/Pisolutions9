@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import worker, { validateHistory } from './index.js';
+import worker, { validateHistory, resetHardAnswerCacheForTest } from './index.js';
 import { inventoryMission, executeInventory, verifyInventory } from './inventory.mjs';
 const request = payload => new Request('https://pi.test/api/chat', { method:'POST', headers:{'content-type':'application/json',origin:'https://pisolutions9.github.io'}, body:JSON.stringify(payload) });
 let seen; let seenModel;
@@ -38,6 +38,13 @@ assert.match(hardCalls[0].input.messages[0].content,/350-500 words/i);
 assert.match(hardCalls[0].input.messages[0].content,/net burn/i);
 assert.match(hardCalls[0].input.messages[0].content,/source of truth/i);
 assert.match(hardCalls[1].input.messages[0].content,/clearly labeled illustrative assumption/i);
+const hardCallCountAfterFirst=hardCalls.length;
+const hardCached=await worker.fetch(request({message:'Calculate a Bayesian posterior probability with two independent positive tests and show enough calculations to audit the answer.'}),hardEnv);
+const hardCachedBody=await hardCached.json();
+assert.equal(hardCached.status,200);
+assert.equal(hardCachedBody.truth,'verified-model-response');
+assert.equal(hardCalls.length,hardCallCountAfterFirst,'verified hard-answer cache must avoid duplicate model calls');
+resetHardAnswerCacheForTest();
 
 let correctionCalls=[];
 const correctionEnv={AI:{run:async(model,input)=>{

@@ -1,3 +1,4 @@
+// PI V1.02 production certification redeploy: 2026-09-19
 // PI V1 release-candidate deployment marker: keep the customer worker deployment tied to this release train.
 // Launch-gate path: sequential Workers AI model routing through AI Gateway, sequential provider fallback, deterministic emergency recovery.
 import { inventoryMission } from './inventory.mjs';

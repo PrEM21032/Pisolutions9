@@ -174,6 +174,23 @@ const rows=[{item:'a',quantity:3,unitCents:10},{item:'b',quantity:7,unitCents:29
 const artifact=executeInventory(rows);assert.equal(verifyInventory(artifact,rows),true);
 for(const content of [artifact.content.replace('0.30','0.31'),artifact.content.replace('a,3','a,4'),artifact.content.replace('b,7,0.29,2.03\r\n',''),artifact.content.replace('2.33','2.34')])assert.equal(verifyInventory({...artifact,content},rows),false);
 for(const text of ['Create CSV:\npens,12,15\nbad,-2,10','Create CSV:\npens,12,15\nbad,2,1.234','Create CSV:\n=HYPERLINK,2,1','Create CSV:\npens,0,15']){try{const r=inventoryMission(text);assert.notEqual(r.status,'completed');}catch(e){assert.match(e.message,/limits/);}}
+resetHardAnswerCacheForTest();
+const runwayPrompt='You are given a company with $2M annual revenue, 35% gross margin, 18% churn, and $300k cash. Design a 12-month plan to reach $5M revenue while preserving cash runway. State assumptions, calculate key metrics, identify risks, and give a prioritized execution sequence.';
+const runwayResponse=await worker.fetch(request({message:runwayPrompt}),{AI:{run:async(_model,input)=>{
+  const system=String(input?.messages?.[0]?.content||'');
+  if(system.includes('independent reviewer')||system.includes('Verify independently'))return {response:'',finish_reason:'stop'};
+  return {response:'Assume 1,000 customers and $50,000 monthly expenses. Monthly cash burn is $350,000 and runway is 0.86 months. Increase marketing spend to $100,000 per month.',finish_reason:'stop',usage:{completion_tokens:80}};
+}}});
+const runwayBody=await runwayResponse.json();
+assert.equal(runwayResponse.status,200);
+assert.equal(runwayBody.truth,'deterministic-verified');
+assert.equal(runwayBody.source,'pi-deterministic-runway-safety');
+assert.match(runwayBody.answer,/cannot honestly calculate cash runway/i);
+assert.match(runwayBody.answer,/monthly net burn/i);
+assert.match(runwayBody.answer,/\$700,000/);
+assert.match(runwayBody.answer,/\$3,000,000/);
+assert.doesNotMatch(runwayBody.answer,/0\.86 months|\$350,000 monthly burn|assume 1,000 customers/i);
+
 console.log('Customer journey contract PASS: history, role restrictions, completeness, artifact execution, tamper detection, invalid-row rejection.');
 
 let attachmentPrompt;

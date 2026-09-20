@@ -31,7 +31,9 @@ jobs:
         run: npm install --no-save --no-package-lock wrangler@4
       - name: Test deterministic recovery
         working-directory: worker
-        run: node src/deterministic-fallback-test.mjs
+        run: |
+          node src/deterministic-fallback-test.mjs
+          node scripts/verify-provider-configuration-test.mjs
       - name: Deploy PI chat worker
         working-directory: worker
         env:
@@ -50,13 +52,16 @@ jobs:
           printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY
           echo 'OpenAI fallback secret configured on the production Worker.'
       - name: Verify release provider configuration
+        working-directory: worker
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$OPENAI_API_KEY"
-          echo 'Release provider path: Cloudflare AI primary + OpenAI fallback/live research configured.'
+          # Cloudflare-managed secrets need not have a second copy in GitHub.
+          # Verify the actual deployed binding; all live response gates below remain required.
+          npx wrangler secret list --format json | node scripts/verify-provider-configuration.mjs
       - name: Browser CORS preflight smoke test
         shell: bash
         run: |

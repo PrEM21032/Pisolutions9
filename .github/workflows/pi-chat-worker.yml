@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -178,3 +179,12 @@ jobs:
         run: |
           set -euo pipefail
           gh issue comment 16 --repo "$GITHUB_REPOSITORY" --body "PI V1.02 PRODUCTION GATES GREEN — commit $GITHUB_SHA passed Worker deployment, provider configuration, CORS, cross-device sync, canonical frontend marker, >=9/11 model-backed customer smoke answers, and web-grounded live-data research with sources."
+
+      - name: Record production gate failure
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 16 --repo "$GITHUB_REPOSITORY" --body "PI V1.02 PRODUCTION GATE FAILED — commit $GITHUB_SHA, run $GITHUB_RUN_ID. Inspect this exact run; diagnose and fix the failed gate without weakening the release standard."

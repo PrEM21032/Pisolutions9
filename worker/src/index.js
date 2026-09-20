@@ -43,8 +43,13 @@ function requiresLiveEvidence(text=''){
   const value=String(text);
   return LIVE_EVIDENCE_ALWAYS.test(value)||(LIVE_EVIDENCE_FRESHNESS.test(value)&&LIVE_EVIDENCE_DYNAMIC_DOMAIN.test(value));
 }
-function recentConversationContext(history=[],message=''){
-  return [...history.slice(-4).map(turn=>turn.content),String(message)].join('\n');
+function requiresLiveEvidenceForRequest(history=[],message=''){
+  const current=String(message||'').trim();
+  if(requiresLiveEvidence(current))return true;
+  const shortFollowup=current.length>0&&current.length<=80;
+  if(!shortFollowup)return false;
+  const priorUser=[...history].reverse().find(turn=>turn?.role==='user'&&typeof turn.content==='string')?.content||'';
+  return requiresLiveEvidence(priorUser);
 }
 const providerCooldowns=new Map();
 function providerAvailable(vendor,now=Date.now()){
@@ -238,7 +243,7 @@ async function produceVerifiedHardAnswer(env,message,history){
 }
 function recoveryResponse(message,request,failure){const answer=deterministicFallback(message);if(!answer)return null;const headers=failure?.response&&failure.failure.error==='chat_provider_rate_limited'?rateLimitHeaders(failure.response):{};return json({ok:true,answer,source:'pi-chat-deterministic-recovery',truth:'deterministic',providerFailure:failure?.failure?.error||'chat_provider_unavailable'},200,request,headers);}
 export { PISessionStore };
-export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);const conversationContext=recentConversationContext(history,message);if(requiresLiveEvidence(conversationContext)){
+export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(requiresLiveEvidenceForRequest(history,message)){
   let lastLiveFailure=null;
   if(env.OPENAI_API_KEY&&providerAvailable('openai')){
     const models=[...new Set([env.PI_WEB_MODEL,env.PI_CHAT_MODEL,...OPENAI_MODEL_FALLBACKS].filter(Boolean))];

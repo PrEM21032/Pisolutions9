@@ -21,7 +21,7 @@ const product = await bridge.execute({ type: 'product_search', input: { query: '
 if (product.status !== 'completed' || product.truth !== 'verified' || product.result?.found !== true) throw new Error('safe_product_search_failed');
 
 const purchase = await bridge.execute({ type: 'purchase', input: { sku: 'demo' } });
-if (purchase.status !== 'blocked' || purchase.nextAction !== 'owner_required') throw new Error('purchase_gate_failed');
+if (purchase.status !== 'blocked' || purchase.nextAction !== 'owner_required' || purchase.readyToExecute !== true || purchase.approvalReason !== 'protected_external_commitment') throw new Error('purchase_gate_failed');
 
 const gated = await bridge.execute({ type: 'financial_transfer', input: { amount: 1 } });
 if (gated.status !== 'blocked' || gated.nextAction !== 'owner_required') throw new Error('financial_gate_failed');

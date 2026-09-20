@@ -1,10 +1,14 @@
-const DEFAULT_SAFE_ACTIONS = Object.freeze(['inspect', 'plan', 'verify']);
+const DEFAULT_SAFE_ACTIONS = Object.freeze(['inspect', 'plan', 'verify', 'product_search', 'availability_check', 'compare_options', 'prepare_cart', 'prepare_booking']);
 const HUMAN_GATE_ACTIONS = Object.freeze([
   'financial_transfer',
   'legal_commitment',
   'secret_rotation',
   'production_destructive_change',
-  'irreversible_external_action'
+  'irreversible_external_action',
+  'purchase',
+  'place_order',
+  'submit_payment',
+  'booking_commitment'
 ]);
 
 function normalizeAction(action = {}) {

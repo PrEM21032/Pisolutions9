@@ -440,14 +440,41 @@ async function produceVerifiedHardAnswerCore(env,message,history){
   return {rejected:true,verificationReason:finalCheck.reason||'material_verification_defect'};
 }
 const hardInFlight=new Map();
+const hardVerifiedCache=new Map();
+const HARD_VERIFIED_CACHE_TTL_MS=60000;
+function hardCacheGet(key,now=Date.now()){
+  const cached=hardVerifiedCache.get(key);
+  if(!cached)return null;
+  if(cached.expiresAt<=now){hardVerifiedCache.delete(key);return null;}
+  return {...cached.result,recoveredFrom:cached.result.recoveredFrom||'verified-cache'};
+}
+function hardCachePut(key,result,now=Date.now()){
+  if(!result?.verified)return;
+  if(hardVerifiedCache.size>=64){
+    const oldest=hardVerifiedCache.keys().next().value;
+    if(oldest!==undefined)hardVerifiedCache.delete(oldest);
+  }
+  hardVerifiedCache.set(key,{result,expiresAt:now+HARD_VERIFIED_CACHE_TTL_MS});
+}
+export function resetHardAnswerCacheForTest(){hardVerifiedCache.clear();hardInFlight.clear();}
 async function produceVerifiedHardAnswer(env,message,history){
   const key=JSON.stringify([message,history]);
+  const cached=hardCacheGet(key);
+  if(cached)return cached;
   const existing=hardInFlight.get(key);
   if(existing)return await existing;
   const work=produceVerifiedHardAnswerCore(env,message,history);
-  if(hardInFlight.size>=64)return await work;
+  if(hardInFlight.size>=64){
+    const result=await work;
+    hardCachePut(key,result);
+    return result;
+  }
   hardInFlight.set(key,work);
-  try{return await work;}
+  try{
+    const result=await work;
+    hardCachePut(key,result);
+    return result;
+  }
   finally{if(hardInFlight.get(key)===work)hardInFlight.delete(key);}
 }
 function recoveryResponse(message,request,failure){const answer=deterministicFallback(message);if(!answer)return null;const headers=failure?.response&&failure.failure.error==='chat_provider_rate_limited'?rateLimitHeaders(failure.response):{};return json({ok:true,answer,source:'pi-chat-deterministic-recovery',truth:'deterministic',providerFailure:failure?.failure?.error||'chat_provider_unavailable'},200,request,headers);}

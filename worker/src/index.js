@@ -239,6 +239,69 @@ async function directShoppingAnswer(env,message=''){
   }
 }
 
+function parseMoneyToken(text,labelPattern){
+  const match=String(text).match(new RegExp(labelPattern+'[^$\\d]{0,40}\\$?([0-9]+(?:\\.[0-9]+)?)\\s*([kKmMbB]?)','i'));
+  if(!match)return null;
+  const base=Number(match[1]);
+  if(!Number.isFinite(base))return null;
+  const suffix=match[2].toLowerCase();
+  const multiplier=suffix==='k'?1e3:suffix==='m'?1e6:suffix==='b'?1e9:1;
+  return base*multiplier;
+}
+function parsePercentToken(text,labelPattern){
+  const match=String(text).match(new RegExp(labelPattern+'[^%\\d]{0,30}([0-9]+(?:\\.[0-9]+)?)\\s*%','i'));
+  if(!match)return null;
+  const value=Number(match[1]);
+  return Number.isFinite(value)?value:null;
+}
+function formatMoney(value){
+  if(!Number.isFinite(value))return '';
+  return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(value);
+}
+function runwaySafetyFallback(message=''){
+  const value=String(message);
+  if(!/\brunway\b/i.test(value))return null;
+  const hasBurnInput=/\b(?:monthly |net )?(?:cash )?burn\b|\bopex\b|\boperating expenses?\b|\bmonthly (?:costs?|expenses?)\b/i.test(value);
+  if(hasBurnInput)return null;
+  const revenue=parseMoneyToken(value,'(?:annual\\s+)?revenue');
+  const target=parseMoneyToken(value,'(?:reach|target(?: revenue)?(?: of)?|grow to)');
+  const cash=parseMoneyToken(value,'cash');
+  const margin=parsePercentToken(value,'gross margin');
+  const churn=parsePercentToken(value,'churn');
+  const known=[];
+  if(revenue!==null)known.push(`Current annual revenue: ${formatMoney(revenue)}.`);
+  if(revenue!==null&&margin!==null)known.push(`Gross profit at a ${margin}% gross margin: ${formatMoney(revenue*margin/100)} per year.`);
+  if(revenue!==null&&target!==null&&revenue>0){
+    const growth=(target/revenue-1)*100;
+    const monthly=(Math.pow(target/revenue,1/12)-1)*100;
+    known.push(`Revenue gap to ${formatMoney(target)}: ${formatMoney(target-revenue)}; total growth required: ${growth.toFixed(1)}%, equivalent to about ${monthly.toFixed(1)}% compounded monthly if growth were smooth.`);
+  }
+  if(cash!==null)known.push(`Cash on hand: ${formatMoney(cash)}.`);
+  if(churn!==null)known.push(`Stated churn: ${churn}%. Its dollar/customer impact cannot be converted without the churn period and customer/revenue-base details.`);
+  return {
+    ok:true,
+    status:'answered',
+    answer:`I can calculate the known economics, but I cannot honestly calculate cash runway from the facts provided because monthly net burn (or operating expenses and cash inflows/outflows) is missing.
+
+Known from the prompt:
+- ${known.join('\n- ')}
+
+Runway formula: cash on hand ÷ monthly net cash burn. Without monthly net burn, any numeric runway would be invented.
+
+A cash-preserving 12-month plan should therefore be conditional:
+1. Establish current monthly net burn and minimum cash floor first.
+2. Set a monthly growth-spend ceiling that keeps projected cash above that floor under base and downside cases.
+3. Prioritize retention/expansion work before scaling acquisition when its payback is faster and measurable.
+4. Add acquisition spend only when CAC, gross-margin contribution, and payback period fit the cash constraint.
+5. Reforecast monthly using actual revenue, churn, gross margin, and burn; reduce spend automatically if runway falls below the chosen threshold.
+
+To produce an exact runway and spend envelope, PI needs monthly net burn or monthly operating expenses plus other material cash inflows/outflows. It will not manufacture those inputs.`,
+    source:'pi-deterministic-runway-safety',
+    truth:'deterministic-verified',
+    verification:'missing-input-guard'
+  };
+}
+
 function paymentRetrySafetyAnswer(message=''){
   const value=String(message);
   const relevant=/\b(payment|charge|checkout)\b/i.test(value)&&/\b(idempotenc(?:y|e)|retry|duplicate|timed[- ]?out|timeout)\b/i.test(value);
@@ -568,7 +631,7 @@ const hardReasoning=requiresHardReasoning(effectiveMessage);
 if(hardReasoning){
   const verified=await produceVerifiedHardAnswer(env,effectiveMessage,history);
   if(verified?.verified)return json({ok:true,status:'answered',answer:verified.answer,source:`pi-chat-cloudflare-ai:${verified.model}`,truth:'verified-model-response',verification:'independent-pass'},200,request);
-  if(verified?.provisional)return json({ok:true,status:'answered',answer:verified.answer,source:`pi-chat-cloudflare-ai:${verified.model}`,truth:'provisional-model-response',verification:'not-completed',verificationReason:verified.verificationReason},200,request);
+  if(verified?.provisional){const runwayFallback=runwaySafetyFallback(effectiveMessage);if(runwayFallback)return json(runwayFallback,200,request);return json({ok:true,status:'answered',answer:verified.answer,source:`pi-chat-cloudflare-ai:${verified.model}`,truth:'provisional-model-response',verification:'not-completed',verificationReason:verified.verificationReason},200,request);}
   const verificationReason=verified?.verificationReason||'material_verification_defect';
   return json({ok:false,status:'verification_failed',error:'hard_reasoning_not_verified',answer:'PI found a material verification problem and will not present that draft as reliable.',truth:'unknown',verificationReason},503,request);
 }

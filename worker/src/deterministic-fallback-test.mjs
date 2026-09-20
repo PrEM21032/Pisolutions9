@@ -10,7 +10,13 @@ assert.match(deterministicFallback('Tell me the stock price of Apple right now.'
 assert.match(deterministicFallback('Tell me something cool'), /Venus/);
 assert.match(deterministicFallback('What is the difference between RAM and storage?'), /RAM is fast, temporary working memory/);
 assert.match(deterministicFallback('What is opportunity cost?'), /Opportunity cost is what you give up/);
-assert.match(deterministicFallback('Build me a website for launching my own products like Amazon.'), /product-launch marketplace/);
+const marketplaceRecovery = deterministicFallback('Build me a website for launching my own products like Amazon.');
+assert.match(marketplaceRecovery, /concrete marketplace MVP blueprint/i);
+assert.match(marketplaceRecovery, /users, sellers, products/i);
+assert.match(marketplaceRecovery, /POST \/checkout\/session/);
+assert.match(marketplaceRecovery, /idempotency keys/);
+assert.match(marketplaceRecovery, /webhook replay tests/);
+assert.match(marketplaceRecovery, /No external website.*was created/i);
 assert.match(deterministicFallback('Create a website for my business.'), /software build/);
 
 const growth = deterministicFallback('You are given a company with $2M annual revenue, 35% gross margin, 18% churn, and $300k cash. Design a 12-month plan to reach $5M revenue while preserving cash runway. State assumptions, calculate key metrics, identify risks, and give a prioritized execution sequence.');

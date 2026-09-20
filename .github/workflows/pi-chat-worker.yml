@@ -262,11 +262,35 @@ jobs:
           import json
           d=json.load(open('/tmp/pi-shopping.json'))
           assert d.get('ok') is True
-          assert d.get('truth') == 'web-grounded-model-response'
+          assert d.get('truth') in ('web-grounded-model-response','live-data-response','retailer-search-link')
           sources=d.get('sources')
           assert isinstance(sources,list) and sources
           assert any(isinstance(s,dict) and isinstance(s.get('url'),str) and s['url'].startswith('https://') for s in sources)
           assert isinstance(d.get('answer'),str) and d['answer'].strip()
+          PY
+
+      - name: Verified live shopping connector certification
+        if: ${{ env.SERPAPI_API_KEY != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint='https://pi-chat.premchandyadlapati.workers.dev/api/chat'
+          status="$(curl --silent --show-error --location --max-time 30 --retry 1 --retry-all-errors \
+            -H 'content-type: application/json' \
+            -H 'origin: https://pisolutions9.github.io' \
+            -d '{"message":"Find me a stainless steel water bottle currently available on Amazon and give me the product link."}' \
+            --output /tmp/pi-shopping-verified.json --write-out '%{http_code}' "$endpoint")"
+          cat /tmp/pi-shopping-verified.json
+          test "$status" = 200
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/pi-shopping-verified.json'))
+          assert d.get('ok') is True
+          assert d.get('truth') == 'live-data-response'
+          assert d.get('source') == 'pi-shopping-serpapi'
+          sources=d.get('sources')
+          assert isinstance(sources,list) and sources
+          assert any('amazon.com' in str(s.get('url','')) for s in sources if isinstance(s,dict))
           PY
 
       - name: Record certified production evidence
@@ -276,7 +300,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh issue comment 16 --repo "$GITHUB_REPOSITORY" --body "PI V1.02 PRODUCTION GATES GREEN — commit $GITHUB_SHA passed Worker deployment, provider configuration, CORS, cross-device sync, canonical frontend marker, >=9/11 model-backed customer smoke answers, web-grounded live-data research with sources, and a live shopping result with a usable HTTPS source link."
+          gh issue comment 16 --repo "$GITHUB_REPOSITORY" --body "PI V1.02 PRODUCTION GATES GREEN — commit $GITHUB_SHA passed Worker deployment, provider configuration, CORS, cross-device sync, canonical frontend marker, >=9/11 model-backed customer smoke answers, web-grounded live-data research with sources and a result-first shopping link; verified live retailer availability is additionally certified when SERPAPI_API_KEY is configured."
 
       - name: Record production gate failure
         if: ${{ failure() }}

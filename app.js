@@ -348,8 +348,15 @@ async function runCustomerChat(text, attachment = null) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 65000);
   try {
-    const response = await fetch(chatApiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text, history, ...(attachment ? { attachment } : {}) }), signal: controller.signal });
-    const body = await response.json();
+    const requestInit = { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text, history, ...(attachment ? { attachment } : {}) }), signal: controller.signal };
+    let response = await fetch(chatApiUrl(), requestInit);
+    if ([502, 503, 504].includes(response.status) && !controller.signal.aborted) {
+      await new Promise(resolve => setTimeout(resolve, 700));
+      response = await fetch(chatApiUrl(), requestInit);
+    }
+    let body;
+    try { body = await response.json(); }
+    catch { body = { ok: false, error: response.ok ? 'invalid_provider_response' : 'chat_provider_server_error' }; }
     const outcome = chatOutcome(response, body);
     const card = addTranscript('assistant', outcome.answer);
     const note = document.createElement('small');

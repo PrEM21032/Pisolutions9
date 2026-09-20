@@ -129,3 +129,47 @@ try {
 } finally {
   globalThis.fetch = originalFetch3;
 }
+
+
+resetProviderHealthForTest();
+
+const originalFetch4 = globalThis.fetch;
+const groqCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  const body = JSON.parse(init.body || '{}');
+  groqCalls.push({url:String(url), body});
+  if (String(url).startsWith('https://api.openai.com/')) {
+    return new Response(JSON.stringify({ error:{ code:'insufficient_quota', message:'quota' } }), {
+      status:429, headers:{'content-type':'application/json'}
+    });
+  }
+  if (String(url) === 'https://api.groq.com/openai/v1/chat/completions') {
+    return new Response(JSON.stringify({
+      choices:[{message:{role:'assistant',content:'Groq independent fallback answered.'}}]
+    }), {status:200, headers:{'content-type':'application/json'}});
+  }
+  throw new Error('unexpected Groq failover URL: ' + url);
+};
+
+try {
+  const request = new Request('https://pi.test/api/chat', {
+    method:'POST',
+    headers:{'content-type':'application/json',origin:'https://pisolutions9.github.io'},
+    body:JSON.stringify({message:'Explain redundancy briefly.'})
+  });
+  const response = await worker.fetch(request, {
+    OPENAI_API_KEY:'openai-test-key',
+    PI_CHAT_MODEL:'model-a',
+    GROQ_API_KEY:'groq-test-key'
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.answer, 'Groq independent fallback answered.');
+  assert.equal(groqCalls.filter(x => x.url.startsWith('https://api.openai.com/')).length, 1);
+  assert.equal(groqCalls.filter(x => x.url === 'https://api.groq.com/openai/v1/chat/completions').length, 1);
+  assert.equal(groqCalls.find(x => x.url === 'https://api.groq.com/openai/v1/chat/completions').body.model, 'openai/gpt-oss-20b');
+  console.log('PI one-key Groq cross-vendor failover test passed');
+} finally {
+  globalThis.fetch = originalFetch4;
+}

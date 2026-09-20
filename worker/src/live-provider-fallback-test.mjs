@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import worker from './index.js';
+import worker, { resetProviderHealthForTest } from './index.js';
 
 const originalFetch = globalThis.fetch;
 const seenModels = [];
@@ -96,6 +96,8 @@ try {
   globalThis.fetch = originalFetch2;
 }
 
+
+resetProviderHealthForTest();
 
 const originalFetch3 = globalThis.fetch;
 let liveOpenAIAttempts = 0;

@@ -42,6 +42,7 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
     expect.soft(business.answer).toMatch(/5,?000/);
     expect.soft(business.answer).toMatch(/10,?000/);
     expect.soft(business.answer).toMatch(/12,?000/);
+    expect.soft(business.answer).not.toMatch(/(?:at|approximately)\s+167\s+customers[^\n.]{0,80}(?:equal|same)/i);
 
     const engineering = await ask(
       'engineering',
@@ -53,6 +54,8 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
     expect.soft(engineering.answer).toMatch(/same|reuse|stable/i);
     expect.soft(engineering.answer).toMatch(/client/i);
     expect.soft(engineering.answer).toMatch(/stored|persist|replay|original result|original response/i);
+    expect.soft(engineering.answer).toMatch(/atomic|reserve[^\n]{0,80}(?:before|prior)|before[^\n]{0,80}(?:charge|process|side effect)/i);
+    expect.soft(engineering.answer).toMatch(/replay|return[^\n]{0,80}(?:stored|original)[^\n]{0,80}(?:result|response)/i);
 
     const research = await ask(
       'research',

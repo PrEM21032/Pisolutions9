@@ -144,7 +144,7 @@ function paymentRetrySafetyAnswer(message=''){
   return {
     ok:true,
     status:'answered',
-    answer:`A timed-out payment POST is ambiguous: the charge may have succeeded even though the client never received the response. Blindly sending a new POST can therefore create a second charge.
+    answer:`A timed-out payment POST is ambiguous: the charge may have succeeded even though the client never received the response. Blindly sending a new POST can therefore create a duplicate (second) charge.
 
 Safe design:
 1. The client creates one stable idempotency key before the first attempt and reuses that exact key on every retry for the same logical payment.

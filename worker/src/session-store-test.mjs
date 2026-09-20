@@ -28,14 +28,14 @@ const call = body => handleSessionRequest(new Request('https://worker.example/ap
   body: JSON.stringify(body)
 }), env, origin);
 
-let response = await call({ action: 'save', token, conversation: [{ role: 'user', content: 'hello' }, { role: 'assistant', content: 'hi' }], draft: 'next' });
+let response = await call({ action: 'save', token, conversation: [{ role: 'user', content: 'hello' }, { role: 'assistant', content: 'hi', sources: [{ url: 'https://www.amazon.com/dp/B000TEST123', title: 'Amazon product listing' }, { url: 'javascript:alert(1)', title: 'bad' }] }], draft: 'next' });
 assert.equal(response.status, 200);
 assert.equal((await response.json()).ok, true);
 
 response = await call({ action: 'load', token });
 let body = await response.json();
 assert.equal(response.status, 200);
-assert.deepEqual(body.session.conversation, [{ role: 'user', content: 'hello' }, { role: 'assistant', content: 'hi' }]);
+assert.deepEqual(body.session.conversation, [{ role: 'user', content: 'hello' }, { role: 'assistant', content: 'hi', sources: [{ url: 'https://www.amazon.com/dp/B000TEST123', title: 'Amazon product listing' }] }]);
 assert.equal(body.session.draft, 'next');
 
 response = await call({ action: 'clear', token });

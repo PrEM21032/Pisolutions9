@@ -38,6 +38,10 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
     expect.soft(business.answer).toMatch(/167|166\.7|break.?even|equal/i);
     expect.soft(business.answer).toMatch(/100/);
     expect.soft(business.answer).toMatch(/300/);
+    expect.soft(business.answer).toMatch(/6,?000/);
+    expect.soft(business.answer).toMatch(/5,?000/);
+    expect.soft(business.answer).toMatch(/10,?000/);
+    expect.soft(business.answer).toMatch(/12,?000/);
 
     const engineering = await ask(
       'engineering',

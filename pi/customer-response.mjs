@@ -75,6 +75,9 @@ export function chatOutcome(response, body) {
     'provisional-model-response': 'Useful reasoning provided, but independent verification did not complete. Treat assumptions and estimates cautiously.',
     'web-grounded-model-response': 'Current answer grounded with live web research sources.',
     'file-grounded-model-response': 'Answer grounded in the attached file or image.',
+    'deterministic-verified': 'Verified deterministic PI capability · no model required.',
+    'runtime-derived': 'Live value from PI’s runtime clock.',
+    'live-data-response': 'Current answer from a direct live data source.',
     deterministic: 'Limited offline recovery; live model unavailable.',
     'needs-input': 'Waiting for valid inventory rows.',
   };
@@ -85,7 +88,7 @@ export function chatOutcome(response, body) {
     label: completedArtifact ? 'File verified' : body.truth === 'needs-input' ? 'More detail needed' : limited ? 'Limited reply' : 'Reply received',
     state: limited ? 'limited' : 'answered', remember: true, complete: !limited, restoreDraft: false,
     artifacts: completedArtifact && Array.isArray(body.artifacts) ? body.artifacts : [],
-    sources: body.truth === 'web-grounded-model-response' && Array.isArray(body.sources) ? body.sources.filter(source => source && typeof source.url === 'string' && /^https:\/\//.test(source.url)).slice(0, 8) : [],
+    sources: ['web-grounded-model-response','live-data-response'].includes(body.truth) && Array.isArray(body.sources) ? body.sources.filter(source => source && typeof source.url === 'string' && /^https:\/\//.test(source.url)).slice(0, 8) : [],
   };
 }
 

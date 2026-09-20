@@ -218,7 +218,7 @@ jobs:
             --output /tmp/pi-live-data.json --write-out '%{http_code}' "$endpoint")"
           cat /tmp/pi-live-data.json
           test "$status" = 200
-          python -c 'import json; d=json.load(open("/tmp/pi-live-data.json")); assert d.get("ok") is True; assert d.get("truth")=="web-grounded-model-response"; assert isinstance(d.get("sources"),list) and len(d["sources"])>0; assert isinstance(d.get("answer"),str) and d["answer"].strip()'
+          python -c 'import json; d=json.load(open("/tmp/pi-live-data.json")); assert d.get("ok") is True; assert d.get("truth") in ("web-grounded-model-response","live-data-response"); assert isinstance(d.get("sources"),list) and len(d["sources"])>0; assert isinstance(d.get("answer"),str) and d["answer"].strip(); assert str(d.get("source","")).startswith(("pi-chat-web","pi-weather-"))'
 
       - name: Record certified production evidence
         if: ${{ success() }}

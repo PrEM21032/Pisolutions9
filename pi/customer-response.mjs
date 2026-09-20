@@ -78,17 +78,18 @@ export function chatOutcome(response, body) {
     'deterministic-verified': 'Verified deterministic PI capability · no model required.',
     'runtime-derived': 'Live value from PI’s runtime clock.',
     'live-data-response': 'Current answer from a direct live data source.',
+    'retailer-search-link': 'Direct shopping search link prepared · price and availability not independently verified.',
     deterministic: 'Limited offline recovery; live model unavailable.',
     'needs-input': 'Waiting for valid inventory rows.',
   };
   const completedArtifact = body.truth === 'verified-calculation' && body.status === 'completed';
-  const limited = ['deterministic', 'needs-input', 'provisional-model-response'].includes(body.truth);
+  const limited = ['deterministic', 'needs-input', 'provisional-model-response', 'retailer-search-link'].includes(body.truth);
   return {
     answer: body.answer, note: notes[body.truth] || 'Model answer · facts not independently checked',
     label: completedArtifact ? 'File verified' : body.truth === 'needs-input' ? 'More detail needed' : limited ? 'Limited reply' : 'Reply received',
     state: limited ? 'limited' : 'answered', remember: true, complete: !limited, restoreDraft: false,
     artifacts: completedArtifact && Array.isArray(body.artifacts) ? body.artifacts : [],
-    sources: ['web-grounded-model-response','live-data-response'].includes(body.truth) && Array.isArray(body.sources) ? body.sources.filter(source => source && typeof source.url === 'string' && /^https:\/\//.test(source.url)).slice(0, 8) : [],
+    sources: ['web-grounded-model-response','live-data-response','retailer-search-link'].includes(body.truth) && Array.isArray(body.sources) ? body.sources.filter(source => source && typeof source.url === 'string' && /^https:\/\//.test(source.url)).slice(0, 8) : [],
   };
 }
 

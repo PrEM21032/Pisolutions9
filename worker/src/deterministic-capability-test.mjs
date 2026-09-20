@@ -9,13 +9,13 @@ const deadAI = {
   toMarkdown: async () => { throw new Error('attachment conversion not expected'); }
 };
 
-async function ask(message) {
+async function ask(message, env = {}) {
   const request = new Request('https://pi.test/api/chat', {
     method:'POST',
     headers:{'content-type':'application/json',origin:'https://pisolutions9.github.io'},
     body:JSON.stringify({message})
   });
-  return worker.fetch(request, { AI:deadAI });
+  return worker.fetch(request, { AI:deadAI, ...env });
 }
 
 try {
@@ -79,6 +79,31 @@ try {
   assert.match(weather.answer, /mainly clear/i);
   assert.equal(weather.sources?.length, 1);
   assert.match(weather.sources[0].url, /^https:\/\/api\.open-meteo\.com\/v1\/forecast\?/);
+
+  globalThis.fetch = async (url) => {
+    const value=String(url);
+    if(value.startsWith('https://serpapi.com/search.json?')){
+      const parsed=new URL(value);
+      assert.equal(parsed.searchParams.get('engine'),'google');
+      assert.match(parsed.searchParams.get('q')||'',/site:amazon\.com/i);
+      return new Response(JSON.stringify({
+        organic_results:[
+          {position:1,title:'Stainless Steel Water Bottle 32 oz',link:'https://www.amazon.com/dp/B0TEST123',snippet:'Insulated stainless steel bottle.'},
+          {position:2,title:'Another Amazon Bottle',link:'https://www.amazon.com/dp/B0TEST456',snippet:'Second current result.'}
+        ]
+      }),{status:200,headers:{'content-type':'application/json'}});
+    }
+    throw new Error('unexpected shopping URL: '+url);
+  };
+  const shoppingResponse = await ask('Find me a stainless steel water bottle currently available on Amazon and give me the product link.', {SERPAPI_API_KEY:'serp-test-key'});
+  const shopping = await shoppingResponse.json();
+  assert.equal(shoppingResponse.status,200);
+  assert.equal(shopping.ok,true);
+  assert.equal(shopping.source,'pi-shopping-serpapi');
+  assert.equal(shopping.truth,'live-data-response');
+  assert.match(shopping.answer,/live shopping results from amazon\.com/i);
+  assert.equal(shopping.sources?.[0]?.url,'https://www.amazon.com/dp/B0TEST123');
+  assert.equal(shopping.sources?.[0]?.title,'Stainless Steel Water Bottle 32 oz');
 
   globalThis.fetch = async () => { throw new Error('network must not be used by deterministic capabilities'); };
 

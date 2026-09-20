@@ -113,7 +113,7 @@ const syncedStore = new Map([['pi-v1-sync-token', syncToken]]);
 const synced = harness({ store: syncedStore, fetcher: async (url, init) => {
   if (String(url).endsWith('/api/session')) {
     const payload = JSON.parse(init.body);
-    if (payload.action === 'load') return response({ ok: true, session: { conversation: [{ role: 'user', content: 'From phone' }, { role: 'assistant', content: 'Synced reply' }], draft: 'Continue here' } });
+    if (payload.action === 'load') return response({ ok: true, session: { conversation: [{ role: 'user', content: 'From phone' }, { role: 'assistant', content: 'Synced reply', sources: [{ url: 'https://www.amazon.com/dp/B000TEST123', title: 'Amazon product listing' }] }], draft: 'Continue here' } });
     return response({ ok: true });
   }
   return response(success);
@@ -122,6 +122,11 @@ await vm.runInContext('loadSyncedSession()', synced.context);
 assert.equal(synced.nodes.command.value, 'Continue here');
 assert.equal(synced.nodes.transcript.children.length, 2, 'remote session renders on another device');
 assert.equal(JSON.parse(synced.store.get('pi-v1-conversation'))[0].content, 'From phone');
+const syncedAssistantCard = synced.nodes.transcript.children[1];
+const syncedSourcesWrap = syncedAssistantCard.children.find?.(child => child.className === 'sources') || syncedAssistantCard.children[2];
+assert.ok(syncedSourcesWrap, 'synced assistant result should retain source links');
+assert.equal(syncedSourcesWrap.children[1].href, 'https://www.amazon.com/dp/B000TEST123');
+assert.equal(syncedSourcesWrap.children[1].textContent, 'Amazon product listing');
 h = harness({ failStorage: true, fetcher: async () => response(success) });
 assert.equal(await h.run('Still usable without storage'), true);
 h = harness({ online: false, fetcher: async () => { throw new Error('offline'); } });
@@ -138,6 +143,17 @@ assert.equal(withSavedFile.nodes.transcript.children[1].children[2].download, 'i
 assert.equal(await withSavedFile.run('What was the total?'), true);
 assert.equal(requestHistory[1].artifacts, undefined, 'artifact metadata must not enter the model history contract');
 assert.equal(requestHistory[1].role, 'assistant');
+const shoppingSource = { url: 'https://www.amazon.com/dp/B000TEST123', title: 'Amazon product listing' };
+h = harness({ fetcher: async () => response({ ok: true, answer: 'Found a current Amazon listing.', status: 'answered', truth: 'web-grounded-model-response', sources: [shoppingSource] }) });
+assert.equal(await h.run('Find this product on Amazon'), true);
+const storedShopping = JSON.parse(h.store.get('pi-v1-conversation'));
+assert.deepEqual(storedShopping[1].sources, [shoppingSource]);
+const shoppingReload = harness({ store: h.store, fetcher: async () => response(success) });
+const reloadedAssistant = shoppingReload.nodes.transcript.children[1];
+const reloadedSources = reloadedAssistant.children.find?.(child => child.className === 'sources') || reloadedAssistant.children[2];
+assert.ok(reloadedSources, 'saved live-result links should render after reload');
+assert.equal(reloadedSources.children[1].href, shoppingSource.url);
+
 h.nodes.clearChat.listeners.click(); withSavedFile.nodes.clearChat.listeners.click();
 assert.equal(withSavedFile.nodes.transcript.children.length, 0);
 console.log('Actual UI handler tests passed: status, recovery, persistent browser continuity, private device sync, migration, storage denial, partials, artifact restoration, and honest device isolation.');

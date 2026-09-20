@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -168,3 +169,12 @@ jobs:
           cat /tmp/pi-live-data.json
           test "$status" = 200
           python -c 'import json; d=json.load(open("/tmp/pi-live-data.json")); assert d.get("ok") is True; assert d.get("truth")=="web-grounded-model-response"; assert isinstance(d.get("sources"),list) and len(d["sources"])>0; assert isinstance(d.get("answer"),str) and d["answer"].strip()'
+
+      - name: Record certified production evidence
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 16 --repo "$GITHUB_REPOSITORY" --body "PI V1.02 PRODUCTION GATES GREEN — commit $GITHUB_SHA passed Worker deployment, provider configuration, CORS, cross-device sync, canonical frontend marker, >=9/11 model-backed customer smoke answers, and web-grounded live-data research with sources."

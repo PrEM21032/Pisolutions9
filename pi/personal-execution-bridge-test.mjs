@@ -7,7 +7,8 @@ const bridge = createPersonalExecutionBridge({
       seen.push(input);
       return { inspected: true, input };
     },
-    plan: async () => ({ planned: true })
+    plan: async () => ({ planned: true }),
+    product_search: async input => ({ found: true, input })
   }
 });
 
@@ -15,6 +16,12 @@ const completed = await bridge.execute({ type: 'inspect', input: { scope: 'perso
 if (completed.status !== 'completed' || completed.truth !== 'verified') throw new Error('safe_execution_failed');
 if (seen.length !== 1 || seen[0]?.scope !== 'personal') throw new Error('safe_handler_input_failed');
 if (!completed.evidence?.length) throw new Error('safe_execution_evidence_missing');
+
+const product = await bridge.execute({ type: 'product_search', input: { query: 'water bottle' } });
+if (product.status !== 'completed' || product.truth !== 'verified' || product.result?.found !== true) throw new Error('safe_product_search_failed');
+
+const purchase = await bridge.execute({ type: 'purchase', input: { sku: 'demo' } });
+if (purchase.status !== 'blocked' || purchase.nextAction !== 'owner_required') throw new Error('purchase_gate_failed');
 
 const gated = await bridge.execute({ type: 'financial_transfer', input: { amount: 1 } });
 if (gated.status !== 'blocked' || gated.nextAction !== 'owner_required') throw new Error('financial_gate_failed');

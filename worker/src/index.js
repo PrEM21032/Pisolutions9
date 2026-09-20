@@ -143,6 +143,74 @@ async function directWeatherAnswer(message=''){
   }
 }
 
+function shoppingRetailerDomain(message=''){
+  const value=String(message).toLowerCase();
+  if(value.includes('amazon'))return 'amazon.com';
+  if(value.includes('walmart'))return 'walmart.com';
+  if(value.includes('ebay'))return 'ebay.com';
+  if(value.includes('best buy'))return 'bestbuy.com';
+  if(value.includes('target'))return 'target.com';
+  return '';
+}
+
+function compactShoppingQuery(message=''){
+  return String(message)
+    .replace(/\b(find|search|shop|shopping|buy|purchase|order|available|availability|in stock|give me|show me|the|a|an|product|item|link|listing|currently|online)\b/gi,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .slice(0,220);
+}
+
+async function directShoppingAnswer(env,message=''){
+  if(!env.SERPAPI_API_KEY||!requiresShoppingEvidence(message))return null;
+  try{
+    const domain=shoppingRetailerDomain(message);
+    const query=compactShoppingQuery(message)||String(message).slice(0,220);
+    const params=new URLSearchParams({
+      engine:'google',
+      q:domain?`${query} site:${domain}`:query,
+      api_key:env.SERPAPI_API_KEY,
+      num:'8',
+      safe:'active',
+      hl:'en',
+      gl:'us'
+    });
+    const endpoint='https://serpapi.com/search.json?'+params.toString();
+    const response=await fetch(endpoint,{headers:{accept:'application/json'}});
+    if(!response.ok)return null;
+    const data=await response.json();
+    const results=Array.isArray(data?.organic_results)?data.organic_results:[];
+    const candidates=results.filter(result=>{
+      const link=String(result?.link||'');
+      if(!/^https:\/\//.test(link))return false;
+      if(domain){
+        try{return new URL(link).hostname.endsWith(domain);}catch{return false;}
+      }
+      return true;
+    }).slice(0,5);
+    if(!candidates.length)return null;
+    const sources=candidates.map(result=>({
+      url:String(result.link).slice(0,2000),
+      title:String(result.title||new URL(result.link).hostname).slice(0,200)
+    }));
+    const lines=candidates.slice(0,3).map((result,index)=>{
+      const snippet=typeof result.snippet==='string'&&result.snippet.trim()?` — ${result.snippet.trim().slice(0,180)}`:'';
+      return `${index+1}. ${String(result.title||'Result').trim()}${snippet}`;
+    });
+    const retailer=domain?domain.replace(/^www\./,''):'the web';
+    return {
+      ok:true,
+      status:'answered',
+      answer:`I found live shopping results from ${retailer}. Open the source links below for the current listing details.\n\n${lines.join('\n')}`,
+      source:'pi-shopping-serpapi',
+      truth:'live-data-response',
+      sources
+    };
+  }catch{
+    return null;
+  }
+}
+
 function paymentRetrySafetyAnswer(message=''){
   const value=String(message);
   const relevant=/\b(payment|charge|checkout)\b/i.test(value)&&/\b(idempotenc(?:y|e)|retry|duplicate|timed[- ]?out|timeout)\b/i.test(value);
@@ -362,7 +430,7 @@ async function produceVerifiedHardAnswer(env,message,history){
 }
 function recoveryResponse(message,request,failure){const answer=deterministicFallback(message);if(!answer)return null;const headers=failure?.response&&failure.failure.error==='chat_provider_rate_limited'?rateLimitHeaders(failure.response):{};return json({ok:true,answer,source:'pi-chat-deterministic-recovery',truth:'deterministic',providerFailure:failure?.failure?.error||'chat_provider_unavailable'},200,request,headers);}
 export { PISessionStore };
-export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(!attachmentInfo){const clock=runtimeClockAnswer(message);if(clock)return json(clock,200,request);const paymentSafety=paymentRetrySafetyAnswer(message);if(paymentSafety)return json(paymentSafety,200,request);const weather=await directWeatherAnswer(message);if(weather)return json(weather,200,request);}if(requiresLiveEvidenceForRequest(history,message)){
+export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(!attachmentInfo){const clock=runtimeClockAnswer(message);if(clock)return json(clock,200,request);const paymentSafety=paymentRetrySafetyAnswer(message);if(paymentSafety)return json(paymentSafety,200,request);const weather=await directWeatherAnswer(message);if(weather)return json(weather,200,request);const shopping=await directShoppingAnswer(env,message);if(shopping)return json(shopping,200,request);}if(requiresLiveEvidenceForRequest(history,message)){
   let lastLiveFailure=null;
   if(env.OPENAI_API_KEY&&providerAvailable('openai')){
     const models=[...new Set([env.PI_WEB_MODEL,env.PI_CHAT_MODEL,...OPENAI_MODEL_FALLBACKS].filter(Boolean))];

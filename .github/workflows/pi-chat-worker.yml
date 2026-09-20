@@ -137,6 +137,22 @@ jobs:
           # Release readiness requires the great majority of the customer smoke
           # to be genuinely model-backed, not deterministic recovery.
           test "$live_model_answers" -ge 9
+      - name: Canonical customer page release smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          page='https://pisolutions9.github.io/Pisolutions9/'
+          for attempt in {1..18}; do
+            body="$(curl --silent --show-error --location --max-time 15 "$page" || true)"
+            if grep -q 'data-pi-release="v1.02-provider-resilience"' <<<"$body"; then
+              echo 'Canonical customer page is serving the V1.02 release surface.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Canonical customer page did not expose the expected V1.02 release marker.'
+          exit 1
+
       - name: Live-data truth boundary smoke test
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

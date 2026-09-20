@@ -44,6 +44,44 @@ try {
   assert.match(payment.answer, /must not create another charge/i);
   assert.match(payment.answer, /reconciliation/i);
 
+  globalThis.fetch = async (url) => {
+    const value=String(url);
+    if(value.startsWith('https://geocoding-api.open-meteo.com/v1/search')) {
+      return new Response(JSON.stringify({results:[{
+        name:'Mobile', admin1:'Alabama', country:'United States',
+        latitude:30.6944, longitude:-88.0431, timezone:'America/Chicago'
+      }]}), {status:200, headers:{'content-type':'application/json'}});
+    }
+    if(value.startsWith('https://api.open-meteo.com/v1/forecast')) {
+      return new Response(JSON.stringify({
+        timezone:'America/Chicago',
+        current:{
+          time:'2026-09-20T05:00',
+          temperature_2m:78.4,
+          apparent_temperature:80.1,
+          relative_humidity_2m:67,
+          precipitation:0,
+          weather_code:1,
+          wind_speed_10m:6.2
+        }
+      }), {status:200, headers:{'content-type':'application/json'}});
+    }
+    throw new Error('unexpected weather URL: '+url);
+  };
+  const weatherResponse = await ask('What is the weather today in Mobile, Alabama?');
+  const weather = await weatherResponse.json();
+  assert.equal(weatherResponse.status, 200);
+  assert.equal(weather.ok, true);
+  assert.equal(weather.source, 'pi-weather-open-meteo');
+  assert.equal(weather.truth, 'live-data-response');
+  assert.match(weather.answer, /Mobile, Alabama, United States/);
+  assert.match(weather.answer, /78\.4°F/);
+  assert.match(weather.answer, /mainly clear/i);
+  assert.equal(weather.sources?.length, 1);
+  assert.match(weather.sources[0].url, /^https:\/\/api\.open-meteo\.com\/v1\/forecast\?/);
+
+  globalThis.fetch = async () => { throw new Error('network must not be used by deterministic capabilities'); };
+
   console.log('PI provider-independent deterministic capability tests passed');
 } finally {
   globalThis.fetch = originalFetch;

@@ -208,11 +208,11 @@ let unverifiedFetch;
 globalThis.fetch=async(url,options)=>{
   if(String(url).includes('api.openai.com/v1/responses')){
     unverifiedFetch=JSON.parse(options.body);
-    return new Response(JSON.stringify({output_text:'Mobile weather is 91°F and sunny.',output:[]}),{status:200,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify({output_text:'A current Mobile news update exists.',output:[]}),{status:200,headers:{'content-type':'application/json'}});
   }
   return originalFetchForFollowup(url,options);
 };
-const unverifiedLive=await worker.fetch(request({message:'What is the weather today in Mobile, Alabama?'}),{OPENAI_API_KEY:'test-key'});
+const unverifiedLive=await worker.fetch(request({message:'What is the latest news in Mobile, Alabama?'}),{OPENAI_API_KEY:'test-key'});
 const unverifiedBody=await unverifiedLive.json();
 globalThis.fetch=originalFetchForFollowup;
 assert.equal(unverifiedFetch.tool_choice,'required');

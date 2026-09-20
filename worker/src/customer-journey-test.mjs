@@ -79,6 +79,7 @@ const concurrentHard=await Promise.all([
 const concurrentBodies=await Promise.all(concurrentHard.map(response=>response.json()));
 assert.ok(concurrentBodies.every(body=>body.truth==='verified-model-response'));
 assert.equal(singleflightCalls,2);
+resetHardAnswerCacheForTest();
 
 let rejectCalls=0;
 const rejectEnv={AI:{run:async(_model,input)=>{

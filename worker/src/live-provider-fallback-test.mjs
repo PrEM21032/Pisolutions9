@@ -173,3 +173,60 @@ try {
 } finally {
   globalThis.fetch = originalFetch4;
 }
+
+
+resetProviderHealthForTest();
+
+const originalFetch5 = globalThis.fetch;
+const liveVendorCalls = [];
+globalThis.fetch = async (url, init = {}) => {
+  const body = JSON.parse(init.body || '{}');
+  liveVendorCalls.push({url:String(url), body});
+  if (String(url).startsWith('https://api.openai.com/')) {
+    return new Response(JSON.stringify({ error:{ code:'insufficient_quota', message:'quota' } }), {
+      status:429, headers:{'content-type':'application/json'}
+    });
+  }
+  if (String(url) === 'https://api.groq.com/openai/v1/chat/completions') {
+    return new Response(JSON.stringify({
+      choices:[{
+        message:{
+          role:'assistant',
+          content:'It is currently raining in the test location.',
+          executed_tools:[{
+            search_results:[{
+              url:'https://example.com/live-weather',
+              title:'Live Weather'
+            }]
+          }]
+        }
+      }]
+    }), {status:200, headers:{'content-type':'application/json'}});
+  }
+  throw new Error('unexpected live failover URL: ' + url);
+};
+
+try {
+  const request = new Request('https://pi.test/api/chat', {
+    method:'POST',
+    headers:{'content-type':'application/json',origin:'https://pisolutions9.github.io'},
+    body:JSON.stringify({message:'What is the weather right now in Mobile, Alabama?'})
+  });
+  const response = await worker.fetch(request, {
+    OPENAI_API_KEY:'openai-live-test',
+    PI_WEB_MODEL:'web-a',
+    PI_CHAT_MODEL:'chat-b',
+    GROQ_API_KEY:'groq-live-test'
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.truth, 'web-grounded-model-response');
+  assert.equal(body.source, 'pi-chat-web-groq:groq/compound-mini');
+  assert.equal(body.sources?.[0]?.url, 'https://example.com/live-weather');
+  assert.equal(liveVendorCalls.filter(x => x.url.startsWith('https://api.openai.com/')).length, 1);
+  assert.equal(liveVendorCalls.filter(x => x.url === 'https://api.groq.com/openai/v1/chat/completions').length, 1);
+  console.log('PI OpenAI-to-Groq sourced live-research failover test passed');
+} finally {
+  globalThis.fetch = originalFetch5;
+}

@@ -47,17 +47,14 @@ jobs:
           set -euo pipefail
           printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY
           echo 'OpenAI fallback secret configured on the production Worker.'
-      - name: Verify provider configuration path
+      - name: Verify release provider configuration
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "$OPENAI_API_KEY" ]]; then
-            echo 'Provider path: Cloudflare AI primary + OpenAI fallback configured.'
-          else
-            echo 'Provider path: Cloudflare AI primary; OpenAI fallback not configured.'
-          fi
+          test -n "$OPENAI_API_KEY"
+          echo 'Release provider path: Cloudflare AI primary + OpenAI fallback/live research configured.'
       - name: Browser CORS preflight smoke test
         shell: bash
         run: |
@@ -137,7 +134,9 @@ jobs:
           test "${#answers[@]}" = 11
           for ((i=0; i<${#answers[@]}; i++)); do test -n "${answers[$i]}"; done
           echo "Live model-backed answers: $live_model_answers"
-          test "$live_model_answers" -ge 1
+          # Release readiness requires the great majority of the customer smoke
+          # to be genuinely model-backed, not deterministic recovery.
+          test "$live_model_answers" -ge 9
       - name: Live-data truth boundary smoke test
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -151,9 +150,5 @@ jobs:
             -d '{"message":"What is the weather today in Mobile, Alabama?"}' \
             --output /tmp/pi-live-data.json --write-out '%{http_code}' "$endpoint")"
           cat /tmp/pi-live-data.json
-          if [[ "$status" = 200 ]]; then
-            python -c 'import json; d=json.load(open("/tmp/pi-live-data.json")); assert d.get("ok") is True; assert d.get("truth")=="web-grounded-model-response"; assert isinstance(d.get("sources"),list) and len(d["sources"])>0; assert isinstance(d.get("answer"),str) and d["answer"].strip()'
-          else
-            test "$status" = 503
-            python -c 'import json; d=json.load(open("/tmp/pi-live-data.json")); assert d.get("ok") is False; assert d.get("truth")=="unknown"; assert d.get("error") in ("live_data_connector_not_configured","live_research_unverified","live_research_provider_unavailable","chat_provider_rate_limited","chat_provider_server_error","chat_provider_auth_failed","chat_provider_access_denied")'
-          fi
+          test "$status" = 200
+          python -c 'import json; d=json.load(open("/tmp/pi-live-data.json")); assert d.get("ok") is True; assert d.get("truth")=="web-grounded-model-response"; assert isinstance(d.get("sources"),list) and len(d["sources"])>0; assert isinstance(d.get("answer"),str) and d["answer"].strip()'

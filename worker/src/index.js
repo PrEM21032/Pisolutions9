@@ -36,12 +36,18 @@ const EDGE_MODEL_FALLBACKS = [
 const OPENAI_MODEL_FALLBACKS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5'];
 const HARD_REASONING = /\b(calculate|posterior|bayes|probability|optimi[sz]|linear programming|profit-maximi[sz]|cash model|cash flow|runway|break-even|show the math|total costs? become equal|which is cheaper|double (?:its )?operating profit|additional annual gross profit|additional gross profit|constraint|corner points?|binding constraints?|distributed systems?|network partition|cap theorem|exactly.once|no double charges?|duplicate charges?|idempotenc(?:y|e)|payment api|retry strategy|ledger|migration|reconciliation|invariants?|rollback|shard(?:ed|ing)?|25,?000 writes|correlation|causality|causal inference|confound(?:er|ing)|prove why|show enough calculations|audit the answer)\b/i;
 function requiresHardReasoning(text=''){return HARD_REASONING.test(String(text));}
-const LIVE_EVIDENCE_ALWAYS = /\b(weather|temperature|forecast|stock (?:price|quote)|score|standings|traffic|open now|available now|in stock|available on|buy online|shop for|find (?:me )?(?:a |an |the )?(?:product|item)|amazon|walmart|ebay|best buy|target)\b/i;
+const LIVE_EVIDENCE_ALWAYS = /\b(weather|temperature|forecast|stock (?:price|quote)|score|standings|traffic|open now|available now|in stock|available on|buy online|shop for|find (?:me )?(?:a |an |the )?(?:product|item))\b/i;
 const LIVE_EVIDENCE_FRESHNESS = /\b(latest|live|current|currently|now|right now|today|tonight|this (?:morning|afternoon|evening|week|month|year))\b/i;
 const LIVE_EVIDENCE_DYNAMIC_DOMAIN = /\b(weather|temperature|forecast|price|stock|market|score|standings|news|traffic|availability|available|open|election results?|sports?|flight status|exchange rate|date|time|utc|timezone|time zone|product|item|amazon|walmart|ebay|best buy|target|shopping|store)\b/i;
+function requiresShoppingEvidence(text=''){
+  const value=String(text);
+  const action=/\b(find|search|shop|shopping|buy|purchase|order|available|availability|in stock|price|deal|link|listing)\b/i.test(value);
+  const commerce=/\b(product|item|amazon|walmart|ebay|best buy|target|store|retailer)\b/i.test(value);
+  return action&&commerce;
+}
 function requiresLiveEvidence(text=''){
   const value=String(text);
-  return LIVE_EVIDENCE_ALWAYS.test(value)||(LIVE_EVIDENCE_FRESHNESS.test(value)&&LIVE_EVIDENCE_DYNAMIC_DOMAIN.test(value));
+  return requiresShoppingEvidence(value)||LIVE_EVIDENCE_ALWAYS.test(value)||(LIVE_EVIDENCE_FRESHNESS.test(value)&&LIVE_EVIDENCE_DYNAMIC_DOMAIN.test(value));
 }
 function requiresLiveEvidenceForRequest(history=[],message=''){
   const current=String(message||'').trim();

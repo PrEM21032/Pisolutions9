@@ -73,7 +73,57 @@ try {
   assert.equal(body.answer, 'Independent fallback answered successfully.');
   assert.equal(vendorAttempts.filter(x => x.url.startsWith('https://api.openai.com/')).length, 1);
   assert.equal(vendorAttempts.filter(x => x.url.startsWith('https://fallback.example/')).length, 1);
-  console.log('PI quota-aware independent vendor failover test passed');
+
+  const secondRequest = new Request('https://pi.test/api/chat', {
+    method:'POST',
+    headers:{'content-type':'application/json',origin:'https://pisolutions9.github.io'},
+    body:JSON.stringify({message:'Explain why redundancy matters in one sentence.'})
+  });
+  const secondResponse = await worker.fetch(secondRequest, {
+    OPENAI_API_KEY:'openai-test-key',
+    PI_CHAT_MODEL:'model-a',
+    PI_FALLBACK_API_KEY:'fallback-test-key',
+    PI_FALLBACK_API_URL:'https://fallback.example/v1',
+    PI_FALLBACK_MODEL:'fallback-model'
+  });
+  const secondBody = await secondResponse.json();
+  assert.equal(secondResponse.status, 200);
+  assert.equal(secondBody.answer, 'Independent fallback answered successfully.');
+  assert.equal(vendorAttempts.filter(x => x.url.startsWith('https://api.openai.com/')).length, 1);
+  assert.equal(vendorAttempts.filter(x => x.url.startsWith('https://fallback.example/')).length, 2);
+  console.log('PI quota-aware independent vendor failover and cooldown test passed');
 } finally {
   globalThis.fetch = originalFetch2;
+}
+
+
+const originalFetch3 = globalThis.fetch;
+let liveOpenAIAttempts = 0;
+globalThis.fetch = async (url, init = {}) => {
+  if (!String(url).startsWith('https://api.openai.com/')) throw new Error('unexpected live research provider');
+  liveOpenAIAttempts += 1;
+  return new Response(JSON.stringify({ error:{ code:'insufficient_quota', message:'quota' } }), {
+    status:429, headers:{'content-type':'application/json'}
+  });
+};
+
+try {
+  const request = new Request('https://pi.test/api/chat', {
+    method:'POST',
+    headers:{'content-type':'application/json',origin:'https://pisolutions9.github.io'},
+    body:JSON.stringify({message:'What is the weather right now in Mobile, Alabama?'})
+  });
+  const response = await worker.fetch(request, {
+    OPENAI_API_KEY:'live-test-key',
+    PI_WEB_MODEL:'web-a',
+    PI_CHAT_MODEL:'chat-b'
+  });
+  const body = await response.json();
+  assert.equal(response.status, 503);
+  assert.equal(body.ok, false);
+  assert.equal(body.error, 'chat_provider_quota_exhausted');
+  assert.equal(liveOpenAIAttempts, 1);
+  console.log('PI live research quota circuit test passed');
+} finally {
+  globalThis.fetch = originalFetch3;
 }

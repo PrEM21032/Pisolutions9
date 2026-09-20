@@ -87,7 +87,7 @@ function syncApiUrl() {
   const configuredBase = window.PI_CHAT_API_BASE || document.documentElement.dataset.piChatApiBase || 'https://pi-chat.premchandyadlapati.workers.dev';
   return configuredBase.replace(/\/$/, '') + '/api/session';
 }
-function syncConversationPayload() { return historyWindow().map(({ role, content }) => ({ role, content })); }
+function syncConversationPayload() { return historyWindow().map(({ role, content, sources }) => ({ role, content, ...(Array.isArray(sources) && sources.length ? { sources } : {}) })); }
 async function syncRequest(action, extra = {}) {
   if (!syncToken) return null;
   const response = await fetch(syncApiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, token: syncToken, ...extra }) });
@@ -121,9 +121,13 @@ function historyWindow() {
   for (const turn of [...conversation].reverse()) { if (turn.content.length > 12000 || size + turn.content.length > 30000) break; result.unshift(turn); size += turn.content.length; }
   return result.slice(-20);
 }
-function rememberTurn(role, content, artifacts = []) {
+function sanitizeSavedSources(sources = []) {
+  return Array.isArray(sources) ? sources.filter(source => source && typeof source.url === 'string' && /^https:\/\//.test(source.url)).slice(0, 8).map(source => ({ url: source.url.slice(0, 2000), title: typeof source.title === 'string' ? source.title.slice(0, 200) : '' })) : [];
+}
+function rememberTurn(role, content, artifacts = [], sources = []) {
   const savedArtifacts = artifacts.filter(isDownloadableArtifact).slice(0, 1).map(({ filename, mimeType, content }) => ({ filename, mimeType, content }));
-  conversation.push({ role, content, ...(savedArtifacts.length ? { artifacts: savedArtifacts } : {}) }); conversation = historyWindow();
+  const savedSources = role === 'assistant' ? sanitizeSavedSources(sources) : [];
+  conversation.push({ role, content, ...(savedArtifacts.length ? { artifacts: savedArtifacts } : {}), ...(savedSources.length ? { sources: savedSources } : {}) }); conversation = historyWindow();
   storageSet(HISTORY_KEY, JSON.stringify(conversation));
   scheduleSessionSync();
 }
@@ -159,6 +163,7 @@ function renderConversation() {
   for (const turn of conversation) {
     const card = addTranscript(turn.role, turn.content);
     if (turn.role === 'assistant' && Array.isArray(turn.artifacts)) for (const artifact of turn.artifacts.slice(0, 1)) downloadArtifact(artifact, card);
+    if (turn.role === 'assistant') renderSources(turn.sources, card);
   }
   syncWelcome();
 }
@@ -364,7 +369,7 @@ async function runCustomerChat(text, attachment = null) {
     card.append(note);
     for (const artifact of outcome.artifacts) downloadArtifact(artifact, card);
     renderSources(outcome.sources, card);
-    if (outcome.remember) { rememberTurn('user', attachment ? `${text}\n[Attached file: ${attachment.name}]` : text); rememberTurn('assistant', outcome.answer, outcome.artifacts); }
+    if (outcome.remember) { rememberTurn('user', attachment ? `${text}\n[Attached file: ${attachment.name}]` : text); rememberTurn('assistant', outcome.answer, outcome.artifacts, outcome.sources); }
     if (outcome.complete && attachment) clearAttachment();
     if (outcome.restoreDraft) restoreDraft(text);
     mission.classList.add('hidden');

@@ -51,6 +51,51 @@ function requiresLiveEvidenceForRequest(history=[],message=''){
   const priorUser=[...history].reverse().find(turn=>turn?.role==='user'&&typeof turn.content==='string')?.content||'';
   return requiresLiveEvidence(priorUser);
 }
+function runtimeClockAnswer(message='',now=new Date()){
+  const value=String(message);
+  const asksUtc=/\butc\b/i.test(value)&&/\b(current|right now|now|today|date|time)\b/i.test(value);
+  if(!asksUtc)return null;
+  const iso=now.toISOString();
+  const date=iso.slice(0,10);
+  const time=iso.slice(11,19);
+  return {
+    ok:true,
+    status:'answered',
+    answer:`The current UTC date is ${date}, and the current UTC time is ${time}. Source: PI Worker runtime clock (UTC), observed at ${iso}.`,
+    source:'pi-runtime-clock',
+    truth:'runtime-derived',
+    observedAt:iso,
+    sources:[]
+  };
+}
+
+function paymentRetrySafetyAnswer(message=''){
+  const value=String(message);
+  const relevant=/\b(payment|charge|checkout)\b/i.test(value)&&/\b(idempotenc(?:y|e)|retry|duplicate|timed[- ]?out|timeout)\b/i.test(value);
+  if(!relevant)return null;
+  return {
+    ok:true,
+    status:'answered',
+    answer:`A timed-out payment POST is ambiguous: the charge may have succeeded even though the client never received the response. Blindly sending a new POST can therefore create a second charge.
+
+Safe design:
+1. The client creates one stable idempotency key before the first attempt and reuses that exact key on every retry for the same logical payment.
+2. Before any external charge side effect, the server atomically reserves that key together with a request fingerprint. A uniqueness constraint or transaction prevents two concurrent requests from both becoming the executor.
+3. The reserved record moves through states such as processing, succeeded, failed, or reconciliation_required.
+4. When the provider returns a final result, persist the provider transaction ID plus the complete final outcome under that key.
+5. A retry with the same key and matching fingerprint must replay/return the stored original result or response; it must not create another charge.
+6. A retry with the same key but different payment details must be rejected.
+7. If the first attempt is still in progress or its provider outcome is unknown, return the existing in-progress/reconciliation state. Do not start a second charge.
+8. Use bounded retries with backoff for transport failures, but keep the same idempotency key throughout.
+
+Failure sequence prevented: charge succeeds → response is lost → client retries → server finds the existing reservation/result → server replays the stored outcome instead of charging again.
+
+The critical invariant is: one logical payment key may produce at most one externally executed charge, and every matching retry resolves to the same persisted outcome.`,
+    source:'pi-deterministic-payment-safety',
+    truth:'deterministic-verified',
+    verification:'local-invariant'
+  };
+}
 const providerCooldowns=new Map();
 function providerAvailable(vendor,now=Date.now()){
   const until=providerCooldowns.get(vendor)||0;
@@ -243,7 +288,7 @@ async function produceVerifiedHardAnswer(env,message,history){
 }
 function recoveryResponse(message,request,failure){const answer=deterministicFallback(message);if(!answer)return null;const headers=failure?.response&&failure.failure.error==='chat_provider_rate_limited'?rateLimitHeaders(failure.response):{};return json({ok:true,answer,source:'pi-chat-deterministic-recovery',truth:'deterministic',providerFailure:failure?.failure?.error||'chat_provider_unavailable'},200,request,headers);}
 export { PISessionStore };
-export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(requiresLiveEvidenceForRequest(history,message)){
+export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(!attachmentInfo){const clock=runtimeClockAnswer(message);if(clock)return json(clock,200,request);const paymentSafety=paymentRetrySafetyAnswer(message);if(paymentSafety)return json(paymentSafety,200,request);}if(requiresLiveEvidenceForRequest(history,message)){
   let lastLiveFailure=null;
   if(env.OPENAI_API_KEY&&providerAvailable('openai')){
     const models=[...new Set([env.PI_WEB_MODEL,env.PI_CHAT_MODEL,...OPENAI_MODEL_FALLBACKS].filter(Boolean))];

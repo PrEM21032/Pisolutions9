@@ -31,6 +31,18 @@ try {
   assert.match(clock.answer, /Source: PI Worker runtime clock/i);
   assert.match(clock.observedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
 
+  const runwayScenarioResponse = await ask('A company has $2 million cash, $600k monthly burn, and expects revenue to grow from $100k to $250k per month over six months. Build three runway scenarios and explain the assumptions and break-even conditions.');
+  const runwayScenario = await runwayScenarioResponse.json();
+  assert.equal(runwayScenarioResponse.status,200);
+  assert.equal(runwayScenario.ok,true);
+  assert.equal(runwayScenario.source,'pi-deterministic-runway-scenarios');
+  assert.equal(runwayScenario.truth,'deterministic-verified');
+  assert.match(runwayScenario.answer,/4\.47 months/);
+  assert.match(runwayScenario.answer,/4\.00 months/);
+  assert.match(runwayScenario.answer,/3\.33 months/);
+  assert.match(runwayScenario.answer,/monthly revenue must reach \$600k/i);
+  assert.match(runwayScenario.answer,/confirm whether "monthly burn" means gross operating outflow or net cash burn/i);
+
   const paymentResponse = await ask('In a payment API, why can retrying a timed-out POST create duplicate charges? Design a safe retry strategy using idempotency keys and server state.');
   const payment = await paymentResponse.json();
   assert.equal(paymentResponse.status, 200);

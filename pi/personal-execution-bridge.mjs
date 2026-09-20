@@ -38,6 +38,8 @@ export function createPersonalExecutionBridge({
         action: normalized.type,
         truth: 'verified',
         nextAction: 'owner_required',
+        readyToExecute: true,
+        approvalReason: 'protected_external_commitment',
         evidence: [{ source: 'personal-execution-bridge', claim: 'human authorization required for irreversible or protected action' }]
       };
     }
@@ -47,6 +49,8 @@ export function createPersonalExecutionBridge({
         action: normalized.type,
         truth: 'verified',
         nextAction: 'owner_required',
+        readyToExecute: false,
+        approvalReason: 'action_outside_safe_allowlist',
         evidence: [{ source: 'personal-execution-bridge', claim: 'action is outside the configured safe execution allowlist' }]
       };
     }
@@ -68,6 +72,7 @@ export function createPersonalExecutionBridge({
       action: normalized.type,
       result: result ?? null,
       truth: 'verified',
+      readyToExecute: false,
       evidence: [{ source: 'personal-execution-bridge', claim: `safe action executed:${normalized.type}` }]
     };
   }

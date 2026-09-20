@@ -100,3 +100,31 @@ export function deterministicFallback(message) {
 
   return 'I can help with this objective, but the live model provider is currently unavailable. I will not invent facts or pretend an external action was completed.';
 }
+
+
+export function deterministicFallbackResult(message) {
+  const text = normalize(String(message));
+  const answer = deterministicFallback(message);
+  if (!answer) return null;
+
+  const verified =
+    deterministicArithmetic(message) !== null ||
+    /^(hi|hello|hey|good morning|good afternoon|good evening)[!. ]*$/.test(text) ||
+    text.includes('say hello') ||
+    text.includes('why is the sky blue') ||
+    text.includes('tell me something cool') ||
+    text.includes('tell me something interesting') ||
+    text.includes('ram and storage') ||
+    text.includes('difference between ram and storage') ||
+    text.includes('opportunity cost') ||
+    Boolean(complexRecovery(text)) ||
+    (/\b(build|create|make|launch)\b/.test(text) &&
+      (/\b(store|marketplace|amazon|e-?commerce|shop)\b/.test(text) ||
+        (/\b(website|web site)\b/.test(text) && /\b(products?|catalog|cart|checkout|seller)\b/.test(text))));
+
+  return {
+    answer,
+    verified,
+    verification: verified ? 'curated-deterministic-recovery' : 'unverified-generic-recovery'
+  };
+}

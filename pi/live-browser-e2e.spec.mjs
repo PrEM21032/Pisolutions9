@@ -74,7 +74,8 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
       'conversation-memory',
       'Using only the company numbers from my previous question, how much additional annual gross profit would it need to exactly double its operating profit if fixed costs stay unchanged?'
     );
-    expect.soft(memory.answer).toMatch(/10,?000|10000/);
+    expect.soft(memory.answer).toMatch(/additional[^\n]{0,100}(10,?000|10000)|needs?[^\n]{0,100}(10,?000|10000)/i);
+    expect.soft(memory.answer).not.toMatch(/needs? an additional \$?40,?000|additional gross profit (?:needed )?(?:before fixed costs )?= \$?40,?000/i);
 
     const live = await ask(
       'live-research',

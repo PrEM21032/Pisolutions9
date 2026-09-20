@@ -10,6 +10,14 @@ const BLOCKERS = {
     answer: 'PI reached live research, but the response did not include source evidence for the current facts. PI will not present that as verified. Your question is kept below so you can try again.',
     label: 'Live evidence missing',
   },
+  live_research_provider_unavailable: {
+    answer: 'PI could not reach a working live-research provider for this current-data request. Your question is kept below; PI will not guess from stale information.',
+    label: 'Live research unavailable',
+  },
+  empty_live_research_response: {
+    answer: 'PI reached live research, but the provider returned no usable answer. Your question is kept below; PI did not claim completion.',
+    label: 'Empty live response',
+  },
   hard_reasoning_not_verified: {
     answer: 'PI could not independently verify this answer, so no reliable result was produced. Your question is kept below. You can add the missing facts or narrow the question and try again.',
     label: 'Verification blocked',
@@ -52,7 +60,8 @@ const BLOCKERS = {
 export function chatOutcome(response, body) {
   if (!response.ok || !body || typeof body.answer !== 'string' || !body.answer.trim()) {
     const blocker = BLOCKERS[body?.error];
-    return { answer: blocker?.answer || UNAVAILABLE, label: blocker?.label || 'Request failed', state: 'blocked', remember: false, complete: false, restoreDraft: true, note: 'No completed result.', artifacts: [], sources: [] };
+    const safeBackendAnswer = body && body.ok === false && body.truth === 'unknown' && typeof body.answer === 'string' && body.answer.trim() ? body.answer.trim() : '';
+    return { answer: blocker?.answer || safeBackendAnswer || UNAVAILABLE, label: blocker?.label || (safeBackendAnswer ? 'Request not completed' : 'Request failed'), state: 'blocked', remember: false, complete: false, restoreDraft: true, note: 'No completed result.', artifacts: [], sources: [] };
   }
   if (body.status === 'incomplete') {
     return { answer: body.answer + '\n\nThis answer reached its output limit and is incomplete. Ask for a shorter response or the next section.', label: 'Answer incomplete', state: 'limited', remember: true, complete: false, restoreDraft: false, note: 'Partial answer — not a completed result.', artifacts: [], sources: [] };

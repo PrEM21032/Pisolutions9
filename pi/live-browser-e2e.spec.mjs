@@ -35,39 +35,39 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
       'business',
       'A small online retailer has $10,000 to choose between Channel A and Channel B. A costs $4,000 fixed plus $20 per acquired customer. B costs $1,500 fixed plus $35 per acquired customer. At what customer count do their total costs become equal, and which is cheaper at 100 and 300 customers? Show the math clearly.'
     );
-    expect(business.answer).toMatch(/167|166\.7|break.?even|equal/i);
-    expect(business.answer).toMatch(/100/);
-    expect(business.answer).toMatch(/300/);
+    expect.soft(business.answer).toMatch(/167|166\.7|break.?even|equal/i);
+    expect.soft(business.answer).toMatch(/100/);
+    expect.soft(business.answer).toMatch(/300/);
 
     const engineering = await ask(
       'engineering',
       'In a payment API, explain why blindly retrying a timed-out POST can create duplicate charges. Design a safe retry strategy using idempotency keys, bounded retries, and server-side state. Give the failure sequence and the prevention mechanism.'
     );
-    expect(engineering.answer).toMatch(/idempoten/i);
-    expect(engineering.answer).toMatch(/duplicate|double/i);
-    expect(engineering.answer).toMatch(/retry/i);
+    expect.soft(engineering.answer).toMatch(/idempoten/i);
+    expect.soft(engineering.answer).toMatch(/duplicate|double/i);
+    expect.soft(engineering.answer).toMatch(/retry/i);
 
     const research = await ask(
       'research',
       'A study finds that people who carry lighters have a much higher rate of lung cancer. Explain why this correlation does not show that lighters cause cancer, identify the likely confounder, and state what kind of evidence would better test causality.'
     );
-    expect(research.answer).toMatch(/smok|tobacco|cigarette/i);
-    expect(research.answer).toMatch(/confound/i);
-    expect(research.answer).toMatch(/caus|random|experiment|longitudinal|control/i);
+    expect.soft(research.answer).toMatch(/smok|tobacco|cigarette/i);
+    expect.soft(research.answer).toMatch(/confound/i);
+    expect.soft(research.answer).toMatch(/caus|random|experiment|longitudinal|control/i);
 
     const finance = await ask(
       'finance',
       'A company has annual revenue of $125,000, gross margin of 32%, and fixed operating costs of $30,000. Calculate gross profit, operating profit, and operating margin. Show each step.'
     );
-    expect(finance.answer).toMatch(/40,?000|40000/);
-    expect(finance.answer).toMatch(/10,?000|10000/);
-    expect(finance.answer).toMatch(/8\s*%|8\.0/);
+    expect.soft(finance.answer).toMatch(/40,?000|40000/);
+    expect.soft(finance.answer).toMatch(/10,?000|10000/);
+    expect.soft(finance.answer).toMatch(/8\s*%|8\.0/);
 
     const memory = await ask(
       'conversation-memory',
       'Using only the company numbers from my previous question, how much additional annual gross profit would it need to exactly double its operating profit if fixed costs stay unchanged?'
     );
-    expect(memory.answer).toMatch(/10,?000|10000/);
+    expect.soft(memory.answer).toMatch(/10,?000|10000/);
 
     const live = await ask(
       'live-research',
@@ -76,7 +76,7 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
     const sourceLinks = live.turn.locator('.sources a');
     const liveSucceeded = /2026|september|sep\.?\s*20|09[-/]20/i.test(live.answer) && await sourceLinks.count() > 0;
     const honestBlock = /live|current|provider|source|research|quota|unavailable|verify|data/i.test(live.answer);
-    expect(liveSucceeded || honestBlock).toBeTruthy();
+    expect.soft(liveSucceeded || honestBlock).toBeTruthy();
     console.log('PI_LIVE_CURRENT_STATUS ' + JSON.stringify({ liveSucceeded, sourceCount: await sourceLinks.count(), answer: live.answer }));
 
     const artifact = await ask(
@@ -88,6 +88,6 @@ test.describe('PI V1.02 live multi-department customer verification', () => {
     await expect(artifactLink).toHaveText(/Download inventory\.csv/);
 
     const answers = [business.answer, engineering.answer, research.answer, finance.answer, memory.answer, live.answer, artifact.answer];
-    expect(new Set(answers).size).toBe(answers.length);
+    expect.soft(new Set(answers).size).toBe(answers.length);
   });
 });

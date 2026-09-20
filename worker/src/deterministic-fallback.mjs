@@ -71,7 +71,19 @@ export function deterministicFallback(message) {
   if (complex) return complex;
 
   if (/\b(build|create|make|launch)\b/.test(text) && /\b(website|web site|store|marketplace|amazon)\b/.test(text)) {
-    return 'Yes. This software build can become a product-launch marketplace with a storefront, product catalog, search, product pages, cart, checkout, customer accounts, seller/admin dashboard, order management, payments, and analytics. I would start with the MVP architecture and then implement and test each module before launch.';
+    return [
+      'Recovery result: here is a concrete marketplace MVP blueprint you can build from without pretending deployment happened.',
+      '',
+      'Core modules: storefront, catalog/search, product detail, cart, checkout, customer accounts, seller onboarding/dashboard, orders, admin, payments, analytics.',
+      'Primary data entities: users, sellers, products, product_variants, inventory, carts, cart_items, orders, order_items, payments, refunds, addresses, reviews, audit_events.',
+      'Essential APIs: GET /products, GET /products/:id, GET /search, POST /cart/items, POST /checkout/session, POST /orders, POST /payments/confirm, POST /sellers/onboard, GET /seller/orders, POST /webhooks/payment-provider.',
+      'Payment state: created -> pending -> paid | failed | cancelled | refunded. Use server-side price validation, idempotency keys, signed webhook verification, persisted provider event IDs, and fail-closed entitlements.',
+      'Security baseline: authenticated seller/admin routes, role checks, input validation, output encoding, rate limits, CSRF protection where relevant, secret isolation, least-privilege credentials, immutable audit events, and no card data stored directly.',
+      'Testing: unit tests for pricing/order state, API contract tests, payment retry/idempotency tests, webhook replay tests, authorization tests, checkout E2E, seller onboarding E2E, rollback smoke tests.',
+      'Release sequence: catalog/read-only storefront -> cart -> test checkout -> seller onboarding -> order management -> production payments after webhook/idempotency evidence -> analytics/optimization.',
+      '',
+      'This is a completed architecture/specification result. No external website, account, payment system, or deployment was created because the execution provider is unavailable.'
+    ].join('\n');
   }
 
   if (/\b(website|web site|app|software|code)\b/.test(text)) {

@@ -69,6 +69,74 @@ function runtimeClockAnswer(message='',now=new Date()){
   };
 }
 
+const WEATHER_CODE_LABELS = new Map([
+  [0,'clear sky'],[1,'mainly clear'],[2,'partly cloudy'],[3,'overcast'],
+  [45,'fog'],[48,'depositing rime fog'],[51,'light drizzle'],[53,'moderate drizzle'],[55,'dense drizzle'],
+  [56,'light freezing drizzle'],[57,'dense freezing drizzle'],[61,'slight rain'],[63,'moderate rain'],[65,'heavy rain'],
+  [66,'light freezing rain'],[67,'heavy freezing rain'],[71,'slight snow'],[73,'moderate snow'],[75,'heavy snow'],
+  [77,'snow grains'],[80,'slight rain showers'],[81,'moderate rain showers'],[82,'violent rain showers'],
+  [85,'slight snow showers'],[86,'heavy snow showers'],[95,'thunderstorm'],[96,'thunderstorm with slight hail'],
+  [99,'thunderstorm with heavy hail']
+]);
+
+function weatherLocationQuery(message=''){
+  const value=String(message).trim();
+  if(!/\b(weather|forecast|temperature|rain|snow|humidity|wind)\b/i.test(value))return '';
+  const inIndex=value.toLowerCase().lastIndexOf(' in ');
+  if(inIndex<0)return '';
+  return value.slice(inIndex+4).replace(/[?.!]+$/,'').trim().slice(0,120);
+}
+
+async function directWeatherAnswer(message=''){
+  const location=weatherLocationQuery(message);
+  if(!location)return null;
+  try{
+    const geocodeUrl='https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(location)+'&count=1&language=en&format=json';
+    const geocodeResponse=await fetch(geocodeUrl,{headers:{accept:'application/json'}});
+    if(!geocodeResponse.ok)return null;
+    const geocode=await geocodeResponse.json();
+    const place=geocode?.results?.[0];
+    if(!place||!Number.isFinite(place.latitude)||!Number.isFinite(place.longitude))return null;
+    const params=new URLSearchParams({
+      latitude:String(place.latitude),
+      longitude:String(place.longitude),
+      current:'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m',
+      temperature_unit:'fahrenheit',
+      wind_speed_unit:'mph',
+      precipitation_unit:'inch',
+      timezone:'auto'
+    });
+    const forecastUrl='https://api.open-meteo.com/v1/forecast?'+params.toString();
+    const weatherResponse=await fetch(forecastUrl,{headers:{accept:'application/json'}});
+    if(!weatherResponse.ok)return null;
+    const weather=await weatherResponse.json();
+    const current=weather?.current;
+    if(!current||!Number.isFinite(current.temperature_2m))return null;
+    const label=WEATHER_CODE_LABELS.get(current.weather_code)||'weather conditions reported';
+    const placeLabel=[place.name,place.admin1,place.country].filter(Boolean).join(', ');
+    const observed=current.time||new Date().toISOString();
+    const parts=[
+      `Current weather for ${placeLabel}: ${current.temperature_2m}°F, ${label}.`,
+      Number.isFinite(current.apparent_temperature)?`Feels like ${current.apparent_temperature}°F.`:'',
+      Number.isFinite(current.relative_humidity_2m)?`Humidity ${current.relative_humidity_2m}%.`:'',
+      Number.isFinite(current.wind_speed_10m)?`Wind ${current.wind_speed_10m} mph.`:'',
+      Number.isFinite(current.precipitation)?`Current precipitation ${current.precipitation} in.`:'',
+      `Observed for ${observed} in ${weather.timezone||place.timezone||'the location timezone'}.`
+    ].filter(Boolean);
+    return {
+      ok:true,
+      status:'answered',
+      answer:parts.join(' '),
+      source:'pi-weather-open-meteo',
+      truth:'live-data-response',
+      observedAt:observed,
+      sources:[{url:forecastUrl,title:'Open-Meteo weather data'}]
+    };
+  }catch{
+    return null;
+  }
+}
+
 function paymentRetrySafetyAnswer(message=''){
   const value=String(message);
   const relevant=/\b(payment|charge|checkout)\b/i.test(value)&&/\b(idempotenc(?:y|e)|retry|duplicate|timed[- ]?out|timeout)\b/i.test(value);
@@ -288,7 +356,7 @@ async function produceVerifiedHardAnswer(env,message,history){
 }
 function recoveryResponse(message,request,failure){const answer=deterministicFallback(message);if(!answer)return null;const headers=failure?.response&&failure.failure.error==='chat_provider_rate_limited'?rateLimitHeaders(failure.response):{};return json({ok:true,answer,source:'pi-chat-deterministic-recovery',truth:'deterministic',providerFailure:failure?.failure?.error||'chat_provider_unavailable'},200,request,headers);}
 export { PISessionStore };
-export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(!attachmentInfo){const clock=runtimeClockAnswer(message);if(clock)return json(clock,200,request);const paymentSafety=paymentRetrySafetyAnswer(message);if(paymentSafety)return json(paymentSafety,200,request);}if(requiresLiveEvidenceForRequest(history,message)){
+export default{async fetch(request,env){const url=new URL(request.url);const origin=request.headers.get('Origin')||'';if(url.pathname==='/api/session')return handleSessionRequest(request,env,ALLOWED_ORIGIN);if(url.pathname!=='/api/chat')return new Response('Not found',{status:404});if(origin&&origin!==ALLOWED_ORIGIN)return json({ok:false,error:'origin_not_allowed'},403,request);if(request.method==='OPTIONS')return preflight(request);if(request.method!=='POST')return json({ok:false,error:'method_not_allowed'},405,request);let payload;try{payload=await request.json();}catch{return json({ok:false,error:'invalid_json'},400,request);}const message=String(payload?.message||'').trim();if(!message)return json({ok:false,error:'message_required'},400,request);if(message.length>MAX_INPUT)return json({ok:false,error:'message_too_large'},413,request);let history=[];let attachment=null;let attachmentInfo=null;try{history=validateHistory(payload.history);attachment=validateAttachment(payload.attachment);if(!attachment){const mission=inventoryMission(message);if(mission)return json(mission,200,request);}if(attachment)attachmentInfo=await attachmentContext(env,attachment);}catch(error){const code=String(error?.message||error);const status=code==='attachment_conversion_unavailable'||code==='attachment_conversion_failed'?503:400;return json({ok:false,error:code},status,request);}const effectiveMessage=withAttachment(message,attachmentInfo);if(!attachmentInfo){const clock=runtimeClockAnswer(message);if(clock)return json(clock,200,request);const paymentSafety=paymentRetrySafetyAnswer(message);if(paymentSafety)return json(paymentSafety,200,request);const weather=await directWeatherAnswer(message);if(weather)return json(weather,200,request);}if(requiresLiveEvidenceForRequest(history,message)){
   let lastLiveFailure=null;
   if(env.OPENAI_API_KEY&&providerAvailable('openai')){
     const models=[...new Set([env.PI_WEB_MODEL,env.PI_CHAT_MODEL,...OPENAI_MODEL_FALLBACKS].filter(Boolean))];

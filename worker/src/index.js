@@ -240,19 +240,25 @@ async function directShoppingAnswer(env,message=''){
 }
 
 function parseMoneyToken(text,labelPattern){
-  const match=String(text).match(new RegExp(labelPattern+'[^$\\d]{0,40}\\$?([0-9]+(?:\\.[0-9]+)?)\\s*([kKmMbB]?)','i'));
+  const value=String(text);
+  const after=value.match(new RegExp(labelPattern+'[^$\\d]{0,40}\\$?([0-9]+(?:\\.[0-9]+)?)\\s*([kKmMbB]?)','i'));
+  const before=value.match(new RegExp('\\$?([0-9]+(?:\\.[0-9]+)?)\\s*([kKmMbB]?)\\s+[^$\\d]{0,24}'+labelPattern,'i'));
+  const match=after||before;
   if(!match)return null;
   const base=Number(match[1]);
   if(!Number.isFinite(base))return null;
-  const suffix=match[2].toLowerCase();
+  const suffix=String(match[2]||'').toLowerCase();
   const multiplier=suffix==='k'?1e3:suffix==='m'?1e6:suffix==='b'?1e9:1;
   return base*multiplier;
 }
 function parsePercentToken(text,labelPattern){
-  const match=String(text).match(new RegExp(labelPattern+'[^%\\d]{0,30}([0-9]+(?:\\.[0-9]+)?)\\s*%','i'));
+  const value=String(text);
+  const after=value.match(new RegExp(labelPattern+'[^%\\d]{0,30}([0-9]+(?:\\.[0-9]+)?)\\s*%','i'));
+  const before=value.match(new RegExp('([0-9]+(?:\\.[0-9]+)?)\\s*%\\s+[^%\\d]{0,24}'+labelPattern,'i'));
+  const match=after||before;
   if(!match)return null;
-  const value=Number(match[1]);
-  return Number.isFinite(value)?value:null;
+  const number=Number(match[1]);
+  return Number.isFinite(number)?number:null;
 }
 function formatMoney(value){
   if(!Number.isFinite(value))return '';

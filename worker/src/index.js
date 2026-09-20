@@ -239,11 +239,26 @@ async function directShoppingAnswer(env,message=''){
   }
 }
 
-function parseMoneyToken(text,labelPattern){
+function nearestTokenAroundLabel(text,labelPattern,tokenRegex){
   const value=String(text);
-  const after=value.match(new RegExp(labelPattern+'[^$\\d]{0,40}\\$?([0-9]+(?:\\.[0-9]+)?)\\s*([kKmMbB]?)','i'));
-  const before=value.match(new RegExp('\\$?([0-9]+(?:\\.[0-9]+)?)\\s*([kKmMbB]?)\\s+[^$\\d]{0,24}'+labelPattern,'i'));
-  const match=after||before;
+  const label=value.match(new RegExp(labelPattern,'i'));
+  if(!label||label.index===undefined)return null;
+  const start=Math.max(0,label.index-48);
+  const end=Math.min(value.length,label.index+label[0].length+48);
+  const window=value.slice(start,end);
+  const labelOffset=label.index-start;
+  const matches=[...window.matchAll(new RegExp(tokenRegex.source,tokenRegex.flags.includes('g')?tokenRegex.flags:tokenRegex.flags+'g'))];
+  if(!matches.length)return null;
+  matches.sort((a,b)=>{
+    const aPos=(a.index??0)+(a[0].length/2);
+    const bPos=(b.index??0)+(b[0].length/2);
+    const center=labelOffset+(label[0].length/2);
+    return Math.abs(aPos-center)-Math.abs(bPos-center);
+  });
+  return matches[0];
+}
+function parseMoneyToken(text,labelPattern){
+  const match=nearestTokenAroundLabel(text,labelPattern,/\$?([0-9]+(?:\.[0-9]+)?)\s*([kKmMbB]?)/i);
   if(!match)return null;
   const base=Number(match[1]);
   if(!Number.isFinite(base))return null;
@@ -252,10 +267,7 @@ function parseMoneyToken(text,labelPattern){
   return base*multiplier;
 }
 function parsePercentToken(text,labelPattern){
-  const value=String(text);
-  const after=value.match(new RegExp(labelPattern+'[^%\\d]{0,30}([0-9]+(?:\\.[0-9]+)?)\\s*%','i'));
-  const before=value.match(new RegExp('([0-9]+(?:\\.[0-9]+)?)\\s*%\\s+[^%\\d]{0,24}'+labelPattern,'i'));
-  const match=after||before;
+  const match=nearestTokenAroundLabel(text,labelPattern,/([0-9]+(?:\.[0-9]+)?)\s*%/i);
   if(!match)return null;
   const number=Number(match[1]);
   return Number.isFinite(number)?number:null;

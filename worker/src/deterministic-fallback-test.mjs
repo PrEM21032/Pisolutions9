@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { deterministicFallback } from './deterministic-fallback.mjs';
+import { deterministicFallback, deterministicFallbackResult } from './deterministic-fallback.mjs';
 
 assert.equal(deterministicFallback('What is 2 plus 2?'), 'The answer is 4.');
 assert.match(deterministicFallback('Why is the sky blue?'), /scatters shorter blue wavelengths/);
@@ -38,3 +38,17 @@ assert.match(semiconductor, /30%/);
 assert.match(semiconductor, /uncertainty/);
 
 console.log('Deterministic chat recovery tests passed.');
+
+
+const verifiedMarketplace = deterministicFallbackResult('Build me a website for launching my own products like Amazon.');
+assert.equal(verifiedMarketplace.verified, true);
+assert.equal(verifiedMarketplace.verification, 'curated-deterministic-recovery');
+
+const verifiedQuantum = deterministicFallbackResult('Explain quantum computing to a software engineer. Compare it with classical computing, give one concrete example where it could matter, and clearly separate what is practical today from what is still experimental.');
+assert.equal(verifiedQuantum.verified, true);
+
+const genericUnavailable = deterministicFallbackResult('Tell me the stock price of Apple right now.');
+assert.equal(genericUnavailable.verified, false);
+assert.equal(genericUnavailable.verification, 'unverified-generic-recovery');
+
+console.log('Curated deterministic recovery metadata tests passed.');

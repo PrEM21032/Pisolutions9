@@ -53,3 +53,28 @@ const provisional = chatOutcome(ok, { ok: true, status: 'answered', answer: 'Exa
 assert.equal(provisional.complete, false);
 assert.equal(provisional.state, 'limited');
 assert.match(provisional.note, /verification did not complete/i);
+
+
+const shoppingLink = chatOutcome(ok, {
+  ok:true,
+  status:'answered',
+  answer:'I prepared a direct Amazon search link.',
+  truth:'retailer-search-link',
+  sources:[{url:'https://www.amazon.com/s?k=water+bottle',title:'Search Amazon'}]
+});
+assert.equal(shoppingLink.complete,false);
+assert.equal(shoppingLink.state,'limited');
+assert.match(shoppingLink.note,/availability not independently verified/i);
+assert.equal(shoppingLink.sources.length,1);
+assert.equal(shoppingLink.sources[0].url,'https://www.amazon.com/s?k=water+bottle');
+
+const verifiedShopping = chatOutcome(ok, {
+  ok:true,
+  status:'answered',
+  answer:'I found current shopping results.',
+  truth:'live-data-response',
+  sources:[{url:'https://www.amazon.com/dp/B0TEST123',title:'Amazon product listing'}]
+});
+assert.equal(verifiedShopping.complete,true);
+assert.match(verifiedShopping.note,/direct live data source/i);
+assert.equal(verifiedShopping.sources.length,1);

@@ -119,6 +119,12 @@ globalThis.fetch=async(url,options)=>{
   }
   return originalFetch(url,options);
 };
+const comparisonMention=await worker.fetch(request({message:'Build me a website for launching my own products like Amazon.'}),{AI:{run:async()=>({response:'A marketplace MVP needs catalog, cart, checkout, seller onboarding, search, orders, and admin controls.',finish_reason:'stop'})}});
+const comparisonBody=await comparisonMention.json();
+assert.equal(comparisonMention.status,200);
+assert.equal(comparisonBody.ok,true);
+assert.notEqual(comparisonBody.status,'live_evidence_required');
+
 const shoppingResponse=await worker.fetch(request({message:'Find me a stainless steel water bottle available on Amazon and give me the link.'}),{OPENAI_API_KEY:'test-key'});
 const shoppingBody=await shoppingResponse.json();
 globalThis.fetch=originalFetch;

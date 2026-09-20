@@ -15,8 +15,28 @@ const BLOCKERS = {
     label: 'Verification blocked',
   },
   chat_provider_rate_limited: {
-    answer: 'PI’s answer provider is busy or has reached its usage limit. Your question is kept below. Please wait before trying again; no task completion is being claimed.',
-    label: 'Provider busy',
+    answer: 'PI’s answer provider is temporarily rate-limited. Your question is kept below. PI did not complete the request; try again shortly.',
+    label: 'Provider rate-limited',
+  },
+  chat_provider_quota_exhausted: {
+    answer: 'PI’s configured answer provider has exhausted its current usage quota. Your question is kept below. PI needs provider quota to be restored or another live provider to take over.',
+    label: 'Provider quota exhausted',
+  },
+  edge_model_unavailable: {
+    answer: 'PI’s primary edge model is temporarily unavailable and no live fallback completed the request. Your question is kept below.',
+    label: 'Live model unavailable',
+  },
+  chat_provider_server_error: {
+    answer: 'PI reached the live provider, but the provider returned a server error. Your question is kept below; PI did not claim completion.',
+    label: 'Provider error',
+  },
+  chat_provider_network_error: {
+    answer: 'PI could not reach the configured live provider from the runtime. Your question is kept below.',
+    label: 'Provider network error',
+  },
+  customer_request_deadline_exceeded: {
+    answer: 'PI could not complete the answer within the safe response window. Your question is kept below so you can try again.',
+    label: 'Answer timed out',
   },
   attachment_invalid: { answer: 'PI could not read that attachment. Choose a supported file and try again.', label: 'Attachment invalid' },
   attachment_unsupported: { answer: 'That attachment type is not supported yet. Try PDF, Word, Excel, CSV, HTML/XML, ODT/ODS, Numbers, or a common image format.', label: 'File type unsupported' },

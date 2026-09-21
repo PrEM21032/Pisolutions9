@@ -16,7 +16,7 @@ on:
 
 permissions:
   contents: write
-  actions: read
+  actions: write
   issues: read
 
 concurrency:
@@ -45,11 +45,13 @@ jobs:
           node pi/owner-workspace-ui-test.mjs
           node worker/src/owner-workspace-test.mjs
       - name: Commit verified daily snapshot
+        id: snapshot
         shell: bash
         run: |
           set -euo pipefail
           if git diff --quiet -- pi/engineering-history.json worker/src/owner-history.mjs; then
             echo "No owner history changes."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "PI History Bot"
@@ -57,3 +59,9 @@ jobs:
           git add pi/engineering-history.json worker/src/owner-history.mjs
           git commit -m "Update verified PI owner history"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Redeploy PI Worker with fresh owner history
+        if: steps.snapshot.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pi-chat-worker.yml --ref main

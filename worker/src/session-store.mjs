@@ -1,3 +1,4 @@
+import { OWNER_HISTORY } from './owner-history.mjs';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const OWNER_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_OWNER_SESSIONS = 8;
@@ -384,6 +385,10 @@ export async function handleOwnerRequest(request, env, allowedOrigin) {
   if (url.pathname === '/api/owner/status') {
     if (!['GET','POST'].includes(request.method)) return reply({ ok: false, error: 'method_not_allowed' }, 405, origin, allowedOrigin);
     return reply({ ok: true, authenticated: true, ownerId: 'primary-owner', expiresAt: validation.body.expiresAt }, 200, origin, allowedOrigin);
+  }
+  if (url.pathname === '/api/owner/dashboard') {
+    if (request.method !== 'GET') return reply({ ok: false, error: 'method_not_allowed' }, 405, origin, allowedOrigin);
+    return reply({ ok: true, history: OWNER_HISTORY }, 200, origin, allowedOrigin);
   }
   if (url.pathname === '/api/owner/logout') {
     if (request.method !== 'POST') return reply({ ok: false, error: 'method_not_allowed' }, 405, origin, allowedOrigin);

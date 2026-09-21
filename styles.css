@@ -74,3 +74,20 @@ body.owner-mode .workspace{padding-top:14px}
   .owner-command-actions{justify-content:flex-start}
   .owner-grid{grid-template-columns:1fr 1fr}
 }
+
+.owner-growth-head{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.owner-growth-head>div{border:1px solid #1b3956;border-radius:10px;padding:9px;background:#07131f}
+.owner-growth-head strong{display:block;font:600 18px 'Space Grotesk';color:#9bd2ff}
+.owner-growth-head span{display:block;margin-top:3px;color:#758ba3;font-size:9px;line-height:1.35}
+.owner-chart-stage{position:relative}
+.owner-progress-chart{touch-action:pan-y;cursor:crosshair;user-select:none}
+.owner-progress-chart:focus-visible{outline:2px solid #6aa9ff;outline-offset:4px;border-radius:8px}
+.owner-chart-growth{color:#76c7ff}
+.owner-chart-guide{stroke:#d8e9ff;stroke-width:1;stroke-dasharray:3 3;opacity:.75;pointer-events:none}
+.owner-chart-focus{fill:#07131f;stroke:#d8e9ff;stroke-width:2.5;pointer-events:none}
+.owner-chart-tooltip{margin-top:7px;border:1px solid #264965;border-radius:10px;background:#071521;padding:8px 10px;color:#a9bed3;font-size:10px;line-height:1.45}
+.owner-chart-tooltip.hidden{display:none}
+.owner-chart-tooltip strong{display:block;color:#eef7ff;font-size:11px;margin-bottom:2px}
+.owner-chart-tooltip span{display:block}
+.owner-chart-method{margin:8px 0 0;color:#657b92;font-size:9px;line-height:1.45}
+@media(max-width:700px){.owner-growth-head strong{font-size:16px}.owner-growth-head span{font-size:8px}}

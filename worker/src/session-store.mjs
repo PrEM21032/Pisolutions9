@@ -388,7 +388,39 @@ export async function handleOwnerRequest(request, env, allowedOrigin) {
   }
   if (url.pathname === '/api/owner/dashboard') {
     if (request.method !== 'GET') return reply({ ok: false, error: 'method_not_allowed' }, 405, origin, allowedOrigin);
-    return reply({ ok: true, history: OWNER_HISTORY }, 200, origin, allowedOrigin);
+    const ownerAuthConfigured = Boolean(String(env.PI_OWNER_TOKEN || ''));
+    const stripeSecretConfigured = Boolean(String(env.PI_STRIPE_SECRET_KEY || ''));
+    const stripeWebhookConfigured = Boolean(String(env.PI_STRIPE_WEBHOOK_SECRET || ''));
+    const stripePriceConfigured = Boolean(String(env.PI_STRIPE_PRICE_ID || ''));
+    const billingConfigured = stripeSecretConfigured && stripeWebhookConfigured && stripePriceConfigured;
+    const actions = [];
+    if (!ownerAuthConfigured) actions.push('Configure PI_OWNER_TOKEN for protected owner sign-in.');
+    if (!stripeSecretConfigured) actions.push('Configure PI_STRIPE_SECRET_KEY before live billing.');
+    if (!stripeWebhookConfigured) actions.push('Configure PI_STRIPE_WEBHOOK_SECRET before live billing.');
+    if (!stripePriceConfigured) actions.push('Configure PI_STRIPE_PRICE_ID before customer charging.');
+    if (!actions.length) actions.push('No credential/configuration action detected by this dashboard.');
+    return reply({
+      ok: true,
+      history: OWNER_HISTORY,
+      readiness: {
+        ownerAuthConfigured,
+        billingConfigured,
+        stripe: {
+          secretConfigured: stripeSecretConfigured,
+          webhookConfigured: stripeWebhookConfigured,
+          priceConfigured: stripePriceConfigured
+        },
+        productionActivationVerified: false,
+        customerChargingVerified: false
+      },
+      ownerActions: actions,
+      team: {
+        orchestrator: 'Krishna',
+        mode: 'verification-first',
+        currentFocus: ['release reliability','owner workspace','safe production activation'],
+        note: 'This status is repository/configuration evidence only; it does not claim unseen background work.'
+      }
+    }, 200, origin, allowedOrigin);
   }
   if (url.pathname === '/api/owner/logout') {
     if (request.method !== 'POST') return reply({ ok: false, error: 'method_not_allowed' }, 405, origin, allowedOrigin);

@@ -1,78 +1,22 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.github.com https://pi-chat.premchandyadlapati.workers.dev; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; upgrade-insecure-requests" />
-  <title>PI Owner Monitor</title>
-  <link rel="stylesheet" href="owner-dashboard.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="referrer" content="no-referrer" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; object-src 'none'; base-uri 'self'; frame-src 'none'; upgrade-insecure-requests" />
+<title>PI Owner Monitor</title>
+<link rel="stylesheet" href="owner-dashboard.css" />
 </head>
 <body>
-  <main class="dashboard-shell">
-    <header class="dashboard-topbar">
-      <div>
-        <p class="eyebrow">PI · OWNER MONITOR</p>
-        <h1>What is happening in PI?</h1>
-        <p class="subtitle">Temporary V1.02 owner view. Verified GitHub activity only. Auto-refreshes every 60 seconds.</p>
-      </div>
-      <div class="header-actions">
-        <button id="refresh" type="button">Refresh now</button>
-        <a href="./">Open PI</a>
-      </div>
-    </header>
-
-    <section id="modeNotice" class="notice">Loading verified PI activity…</section>
-
-    <section id="dashboard">
-      <section class="hero-status panel">
-        <div>
-          <p class="eyebrow">KRISHNA STATUS</p>
-          <h2 id="krishnaStatus">Checking…</h2>
-          <p id="krishnaDetail" class="muted">Reading the latest workflows and commits.</p>
-        </div>
-        <div class="owner-action">
-          <span>OWNER</span>
-          <strong id="ownerNeed">Checking…</strong>
-          <small id="ownerReason"></small>
-        </div>
-      </section>
-
-      <div class="cards">
-        <article><span>Commits today</span><strong id="commitsToday">—</strong><small>Verified</small></article>
-        <article><span>Issues fixed today</span><strong id="issuesFixedToday">—</strong><small>Verified</small></article>
-        <article><span>CI passed today</span><strong id="ciPassedToday">—</strong><small>Completed successful runs</small></article>
-        <article><span>CI failed today</span><strong id="ciFailedToday">—</strong><small>Needs engineering work</small></article>
-      </div>
-
-      <div class="two-col">
-        <section class="panel">
-          <div class="panel-head"><h2>Live work</h2><span id="liveUpdated">—</span></div>
-          <div id="liveWork" class="feed"></div>
-        </section>
-        <section class="panel">
-          <div class="panel-head"><h2>Blockers</h2><span>Verified only</span></div>
-          <div id="blockers" class="feed"></div>
-        </section>
-      </div>
-
-      <div class="two-col">
-        <section class="panel">
-          <div class="panel-head"><h2>Latest fixes / changes</h2><span>Recent commits</span></div>
-          <div id="changes" class="feed"></div>
-        </section>
-        <section class="panel">
-          <div class="panel-head"><h2>Release checks</h2><span>Latest run per gate</span></div>
-          <div id="releaseChecks" class="feed"></div>
-        </section>
-      </div>
-
-      <section class="panel">
-        <div class="panel-head"><h2>Today summary</h2><span id="todayDate"></span></div>
-        <div id="todaySummary" class="summary-grid"></div>
-      </section>
-    </section>
-  </main>
-  <script type="module" src="owner-dashboard.js"></script>
+<main class="dashboard-shell">
+  <section class="panel" style="margin-top:20vh;max-width:680px;margin-left:auto;margin-right:auto;text-align:center">
+    <p class="eyebrow">PI · OWNER</p>
+    <h1>Private owner monitor</h1>
+    <p class="subtitle">This dashboard is disabled on the public PI website. Public testers can use PI, but owner operations and telemetry are not exposed here.</p>
+    <p class="subtitle">A private authenticated owner dashboard will be restored behind a protected access layer.</p>
+    <div class="header-actions" style="justify-content:center;margin-top:20px"><a href="./">Back to PI</a></div>
+  </section>
+</main>
 </body>
 </html>

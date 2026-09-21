@@ -79,6 +79,11 @@ assert.equal(body.readiness.ownerAuthConfigured,true);
 assert.equal(body.readiness.billingConfigured,false);
 assert.equal(body.readiness.productionActivationVerified,false);
 assert.equal(body.readiness.customerChargingVerified,false);
+assert.equal(body.security.originRestricted,true);
+assert.equal(body.security.bearerSessionRequired,true);
+assert.equal(body.security.noStore,true);
+assert.equal(body.security.loginRateLimited,true);
+assert.equal(body.security.sessionTtlHours,12);
 assert.ok(Array.isArray(body.ownerActions) && body.ownerActions.length >= 1);
 assert.equal(JSON.stringify(body).includes(env.PI_OWNER_TOKEN),false);
 

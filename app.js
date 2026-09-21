@@ -374,7 +374,6 @@ async function loadOwnerWorkspace() {
     command.style.height = 'auto';
     command.style.height = Math.min(command.scrollHeight, 140) + 'px';
     ownerAccess.textContent = 'Owner signed in';
-    if (ownerDashboard) ownerDashboard.hidden = false;
     syncDevice.disabled = true;
     syncDevice.title = 'Owner workspace sync is automatic';
     updateSyncUi('Authenticated owner workspace is active. Changes sync automatically across signed-in devices.');
@@ -410,7 +409,6 @@ async function signOutOwner() {
   ownerSession = ''; ownerMode = false; ownerRevision = 0;
   try { sessionStorage.removeItem(OWNER_SESSION_KEY); } catch {}
   ownerAccess.textContent = 'Owner sign in';
-  if (ownerDashboard) ownerDashboard.hidden = true;
   syncDevice.disabled = false;
   syncDevice.title = '';
   try {

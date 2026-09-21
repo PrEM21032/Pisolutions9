@@ -50,3 +50,17 @@ button:disabled{cursor:not-allowed}
   .owner-sections{grid-template-columns:1fr}
   .top-actions .status{display:none}
 }
+
+
+.owner-chart-wrap{margin-top:12px;border-top:1px solid #17314a;padding-top:12px}
+.owner-progress-chart{display:block;width:100%;height:auto;min-height:145px;overflow:visible}
+.owner-chart-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;color:#8295ab;font-size:10px}
+.owner-chart-legend span{display:inline-flex;align-items:center;gap:5px}
+.owner-chart-legend i{width:14px;height:3px;border-radius:99px;background:currentColor}
+.owner-chart-axis{stroke:#27415c;stroke-width:1}
+.owner-chart-grid{stroke:#183049;stroke-width:1;stroke-dasharray:3 4}
+.owner-chart-line{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.owner-chart-dot{fill:currentColor}
+.owner-chart-label{fill:#7890aa;font:9px 'DM Sans',sans-serif}
+.owner-chart-primary{color:#79b6ff}.owner-chart-secondary{color:#f0c77e}
+@media(max-width:700px){.owner-progress-chart{min-height:132px}.owner-chart-label{font-size:8px}}

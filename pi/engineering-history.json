@@ -25,7 +25,8 @@
     "Bug counts only use GitHub issues when an issue exists; fixes made directly in commits are not inferred as bugs.",
     "Historical additions, deletions, and files-changed are not included yet because exhaustive per-commit diff statistics were not fetched.",
     "Workflow counts include all GitHub Actions runs on each UTC date; cancelled runs are tracked separately.",
-    "Private business and customer telemetry must be merged later through an authenticated private backend, never committed to this public repository."
+    "Private business and customer telemetry must be merged later through an authenticated private backend, never committed to this public repository.",
+    "Current-day rows are point-in-time snapshots. When snapshotPartialDay is true, newer repository activity may exist after snapshotThrough."
   ],
   "totals": {
     "commits": 683,
@@ -138,7 +139,8 @@
       "releaseChecksPassed": 103,
       "releaseChecksFailed": 19,
       "pagesPassed": 26,
-      "workerPassed": 13
+      "workerPassed": 13,
+      "snapshotPartialDay": true
     }
   ],
   "milestoneExamples": [

@@ -33,6 +33,27 @@
       </div>
     </section>
 
+
+    <section id="ownerCommandCenter" class="owner-command-center hidden" aria-live="polite">
+      <div class="owner-command-head">
+        <div><p class="eyebrow">PRIVATE OWNER</p><h2>PI Command Center</h2></div>
+        <button id="ownerRefresh" class="sync-button" type="button">Refresh</button>
+      </div>
+      <p id="ownerSnapshotNote" class="owner-snapshot-note">Authenticated owner data only.</p>
+      <div class="owner-grid">
+        <article><span>PI status</span><strong id="ownerPiStatus">Loading…</strong></article>
+        <article><span>Krishna / team</span><strong id="ownerTeamStatus">Loading…</strong></article>
+        <article><span>Open blockers</span><strong id="ownerBlockers">—</strong></article>
+        <article><span>Your actions</span><strong id="ownerActions">—</strong></article>
+      </div>
+      <div class="owner-sections">
+        <section><h3>Day 1 → now</h3><div id="ownerHistorySummary" class="owner-list"></div></section>
+        <section><h3>Release & production</h3><div id="ownerReleaseStatus" class="owner-list"></div></section>
+        <section><h3>Payments</h3><div id="ownerPaymentStatus" class="owner-list"></div></section>
+        <section><h3>Recent verified activity</h3><div id="ownerRecentActivity" class="owner-list"></div></section>
+      </div>
+    </section>
+
     <section class="composer-wrap" aria-label="Ask PI">
       <p class="session-notice">This browser remembers recent conversation · Use a private sync link to continue on another device.</p>
       <p id="syncNotice" class="sync-notice hidden" aria-live="polite"></p>

@@ -19,7 +19,17 @@ const ownerLoginForm = document.querySelector('#ownerLoginForm');
 const ownerSecret = document.querySelector('#ownerSecret');
 const ownerLoginError = document.querySelector('#ownerLoginError');
 const billingAction = document.querySelector('#billingAction');
-const ownerDashboard = document.querySelector('#ownerDashboard');
+const ownerCommandCenter = document.querySelector('#ownerCommandCenter');
+const ownerRefresh = document.querySelector('#ownerRefresh');
+const ownerPiStatus = document.querySelector('#ownerPiStatus');
+const ownerTeamStatus = document.querySelector('#ownerTeamStatus');
+const ownerBlockers = document.querySelector('#ownerBlockers');
+const ownerActions = document.querySelector('#ownerActions');
+const ownerSnapshotNote = document.querySelector('#ownerSnapshotNote');
+const ownerHistorySummary = document.querySelector('#ownerHistorySummary');
+const ownerReleaseStatus = document.querySelector('#ownerReleaseStatus');
+const ownerPaymentStatus = document.querySelector('#ownerPaymentStatus');
+const ownerRecentActivity = document.querySelector('#ownerRecentActivity');
 let attachedFile = null;
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 
@@ -359,6 +369,61 @@ async function handleBillingReturn() {
 }
 billingAction?.addEventListener('click', () => { startBilling(); });
 
+
+function ownerLine(container, label, value, tone='') {
+  if (!container) return;
+  const p=document.createElement('p');
+  if (tone) p.className=tone;
+  const strong=document.createElement('strong'); strong.textContent=label+': ';
+  p.append(strong, document.createTextNode(String(value ?? 'Unknown')));
+  container.append(p);
+}
+async function refreshOwnerCommandCenter() {
+  if (!ownerMode || !ownerSession || !ownerCommandCenter) return;
+  ownerRefresh.disabled=true;
+  try {
+    const body=await ownerRequest('/api/owner/dashboard',{method:'GET'});
+    const history=body?.history || {};
+    const readiness=body?.readiness || {};
+    const daily=Array.isArray(history.daily)?history.daily:[];
+    const latest=daily.at(-1) || {};
+    const totals=history.totals || {};
+    const actions=Array.isArray(body?.ownerActions)?body.ownerActions:[];
+    ownerCommandCenter.classList.remove('hidden');
+    ownerPiStatus.textContent = readiness.productionActivationVerified ? 'Production activation verified' : 'Engineering ready; production activation not verified';
+    ownerPiStatus.className = readiness.productionActivationVerified ? 'owner-good' : 'owner-warn';
+    ownerTeamStatus.textContent = (body?.team?.currentFocus || []).join(' · ') || 'Verified owner workspace active';
+    ownerBlockers.textContent = actions.filter(x=>!/No credential/.test(x)).length ? String(actions.filter(x=>!/No credential/.test(x)).length) : '0';
+    ownerActions.textContent = actions[0] || 'No owner action detected';
+    ownerSnapshotNote.textContent = latest.snapshotPartialDay ? 'Latest day is a partial verified snapshot; newer repository activity may exist.' : 'Verified repository/configuration snapshot.';
+    ownerHistorySummary.replaceChildren();
+    ownerLine(ownerHistorySummary,'Day 1',history.verifiedDay1?.date || 'Unknown');
+    ownerLine(ownerHistorySummary,'Commits',totals.commits ?? 'Unknown');
+    ownerLine(ownerHistorySummary,'Issues open',totals.issuesOpen ?? totals.currentOpenIssues ?? 'Unknown');
+    ownerLine(ownerHistorySummary,'Workflow runs',totals.workflowRuns ?? 'Unknown');
+    ownerLine(ownerHistorySummary,'Code volume','Unknown until exhaustive diff collection', 'owner-warn');
+    ownerReleaseStatus.replaceChildren();
+    ownerLine(ownerReleaseStatus,'Owner auth',readiness.ownerAuthConfigured ? 'Configured' : 'Not configured',readiness.ownerAuthConfigured?'owner-good':'owner-bad');
+    ownerLine(ownerReleaseStatus,'Production activation',readiness.productionActivationVerified ? 'Verified' : 'Not verified',readiness.productionActivationVerified?'owner-good':'owner-warn');
+    ownerLine(ownerReleaseStatus,'Customer charging',readiness.customerChargingVerified ? 'Verified' : 'Not verified',readiness.customerChargingVerified?'owner-good':'owner-warn');
+    ownerPaymentStatus.replaceChildren();
+    ownerLine(ownerPaymentStatus,'Billing config',readiness.billingConfigured ? 'Configured' : 'Incomplete',readiness.billingConfigured?'owner-good':'owner-warn');
+    ownerLine(ownerPaymentStatus,'Stripe secret',readiness.stripe?.secretConfigured ? 'Configured' : 'Missing');
+    ownerLine(ownerPaymentStatus,'Webhook secret',readiness.stripe?.webhookConfigured ? 'Configured' : 'Missing');
+    ownerLine(ownerPaymentStatus,'Price ID',readiness.stripe?.priceConfigured ? 'Configured' : 'Missing');
+    ownerRecentActivity.replaceChildren();
+    const milestones=Array.isArray(history.milestoneExamples)?history.milestoneExamples.slice(-5).reverse():[];
+    if (!milestones.length) ownerLine(ownerRecentActivity,'Activity','No verified milestones available');
+    for(const item of milestones) ownerLine(ownerRecentActivity,item.date || 'Date',item.message || 'Verified repository activity');
+  } catch {
+    ownerCommandCenter.classList.remove('hidden');
+    ownerPiStatus.textContent='Owner dashboard data unavailable';
+    ownerPiStatus.className='owner-bad';
+    ownerSnapshotNote.textContent='Authenticated owner session is active, but dashboard data could not be loaded.';
+  } finally { ownerRefresh.disabled=false; }
+}
+ownerRefresh?.addEventListener('click',()=>{ refreshOwnerCommandCenter(); });
+
 async function loadOwnerWorkspace() {
   const body = await ownerRequest('/api/owner/workspace', { body:{action:'load'} });
   const workspace = body?.workspace;
@@ -378,6 +443,7 @@ async function loadOwnerWorkspace() {
     syncDevice.title = 'Owner workspace sync is automatic';
     updateSyncUi('Authenticated owner workspace is active. Changes sync automatically across signed-in devices.');
     setStatus('Owner workspace ready');
+    await refreshOwnerCommandCenter();
   } finally { applyingRemoteSession = false; }
 }
 async function restoreOwnerSession() {
@@ -409,6 +475,7 @@ async function signOutOwner() {
   ownerSession = ''; ownerMode = false; ownerRevision = 0;
   try { sessionStorage.removeItem(OWNER_SESSION_KEY); } catch {}
   ownerAccess.textContent = 'Owner sign in';
+  ownerCommandCenter?.classList.add('hidden');
   syncDevice.disabled = false;
   syncDevice.title = '';
   try {

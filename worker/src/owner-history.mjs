@@ -1,0 +1,159 @@
+export const OWNER_HISTORY = Object.freeze({
+  "schemaVersion": 1,
+  "verifiedDay1": {
+    "date": "2026-09-15",
+    "commit": "20d9c93d34e2e58e569415e479144d6ab1374dfd",
+    "message": "Build PI owner console foundation"
+  },
+  "generatedAt": "2026-09-21T03:20:00Z",
+  "source": "GitHub repository evidence",
+  "limitations": [
+    "Commit additions/deletions/files-changed are not backfilled yet because exhaustive per-commit diff statistics require separate evidence collection.",
+    "Bug counts use GitHub issues only when issues exist; fixes committed without an issue are not inferred as bugs.",
+    "Issue reopen counts are unavailable until issue-event history is backfilled.",
+    "Revenue, users, costs, profit, and private runtime telemetry remain unavailable until verified private sources are connected."
+  ],
+  "totals": {
+    "commits": 683,
+    "trackedIssues": 17,
+    "currentOpenIssues": 9
+  },
+  "daily": [
+    {
+      "date": "2026-09-15",
+      "commits": 172,
+      "issuesCreated": 3,
+      "issuesClosed": 0,
+      "workflowRuns": 333,
+      "workflowsPassed": 288,
+      "workflowsFailed": 45,
+      "workflowsCancelled": 0,
+      "releaseChecksPassed": 102,
+      "releaseChecksFailed": 45,
+      "pagesDeploysPassed": 0,
+      "workerDeploysPassed": 0,
+      "milestones": [
+        "Wire PI 1000-input verification into suite",
+        "Add PI 1000 unique input output verification",
+        "Add PI V1 integrated release gate",
+        "Connect PI personal intelligence stack to autonomous runner"
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "commits": 142,
+      "issuesCreated": 11,
+      "issuesClosed": 0,
+      "workflowRuns": 717,
+      "workflowsPassed": 439,
+      "workflowsFailed": 216,
+      "workflowsCancelled": 62,
+      "releaseChecksPassed": 220,
+      "releaseChecksFailed": 73,
+      "pagesDeploysPassed": 119,
+      "workerDeploysPassed": 9,
+      "milestones": [
+        "trigger PI chat worker recovery deployment",
+        "strengthen PI deterministic provider recovery",
+        "recover customer chat on provider outage",
+        "add bounded provider fallback and rate-limit recovery"
+      ]
+    },
+    {
+      "date": "2026-09-17",
+      "commits": 126,
+      "issuesCreated": 2,
+      "issuesClosed": 0,
+      "workflowRuns": 1118,
+      "workflowsPassed": 785,
+      "workflowsFailed": 240,
+      "workflowsCancelled": 93,
+      "releaseChecksPassed": 310,
+      "releaseChecksFailed": 76,
+      "pagesDeploysPassed": 111,
+      "workerDeploysPassed": 14,
+      "milestones": [
+        "test: reject runtime specialist execution without verifier",
+        "fix: require evidence for completed verification outcomes",
+        "feat: enforce mission guardrails in runtime",
+        "ci: add hourly live-model release watch"
+      ]
+    },
+    {
+      "date": "2026-09-18",
+      "commits": 0,
+      "issuesCreated": 0,
+      "issuesClosed": 0,
+      "workflowRuns": 307,
+      "workflowsPassed": 279,
+      "workflowsFailed": 28,
+      "workflowsCancelled": 0,
+      "releaseChecksPassed": 0,
+      "releaseChecksFailed": 0,
+      "pagesDeploysPassed": 0,
+      "workerDeploysPassed": 0,
+      "milestones": []
+    },
+    {
+      "date": "2026-09-19",
+      "commits": 73,
+      "issuesCreated": 0,
+      "issuesClosed": 1,
+      "workflowRuns": 1161,
+      "workflowsPassed": 963,
+      "workflowsFailed": 173,
+      "workflowsCancelled": 19,
+      "releaseChecksPassed": 445,
+      "releaseChecksFailed": 18,
+      "pagesDeploysPassed": 71,
+      "workerDeploysPassed": 44,
+      "milestones": [
+        "Align runtime complex smoke with release safety contract (#93)",
+        "V1.02: persist recent conversation across browser sessions (#90)",
+        "V1.02: use fast edge model as independent reviewer",
+        "V1.02: close final live reliability gaps"
+      ]
+    },
+    {
+      "date": "2026-09-20",
+      "commits": 136,
+      "issuesCreated": 1,
+      "issuesClosed": 7,
+      "workflowRuns": 1568,
+      "workflowsPassed": 979,
+      "workflowsFailed": 237,
+      "workflowsCancelled": 248,
+      "releaseChecksPassed": 507,
+      "releaseChecksFailed": 133,
+      "pagesDeploysPassed": 119,
+      "workerDeploysPassed": 38,
+      "milestones": [
+        "V1.02: resume unfinished autonomous missions",
+        "V1.02: persist autonomous mission state safely",
+        "V1.02: prevent false autonomous completion",
+        "Make Stripe test/live mode explicit and add live billing gate"
+      ]
+    },
+    {
+      "date": "2026-09-21",
+      "commits": 34,
+      "issuesCreated": 0,
+      "issuesClosed": 0,
+      "workflowRuns": 316,
+      "workflowsPassed": 169,
+      "workflowsFailed": 25,
+      "workflowsCancelled": 121,
+      "releaseChecksPassed": 90,
+      "releaseChecksFailed": 16,
+      "pagesDeploysPassed": 24,
+      "workerDeploysPassed": 10,
+      "milestones": [
+        "V1.02: lock owner monitor on public Pages",
+        "V1.02: remove public owner dashboard link",
+        "V1.02: add live owner activity monitor",
+        "V1.02: test dashboard read-only fallback"
+      ],
+      "snapshotPartialDay": true
+    }
+  ]
+});

@@ -21,9 +21,9 @@
     <section id="ownerCommandCenter" class="owner-command-center hidden" aria-live="polite">
       <div class="owner-command-head">
         <div><p class="eyebrow">PRIVATE OWNER</p><h2>PI Command Center</h2></div>
-        <button id="ownerRefresh" class="sync-button" type="button">Refresh</button>
+        <div class="owner-command-actions"><button id="ownerRefresh" class="sync-button" type="button">Refresh</button><button id="ownerSignOut" class="sync-button" type="button">Sign out</button></div>
       </div>
-      <p id="ownerSnapshotNote" class="owner-snapshot-note">Authenticated owner data only.</p>
+      <p id="ownerSnapshotNote" class="owner-snapshot-note">Authenticated owner data only.</p><p id="ownerLastUpdated" class="owner-last-updated"></p>
       <div class="owner-grid">
         <article><span>PI status</span><strong id="ownerPiStatus">Loading…</strong></article>
         <article><span>Krishna / team</span><strong id="ownerTeamStatus">Loading…</strong></article>
@@ -32,6 +32,7 @@
       </div>
       <div class="owner-sections">
         <section><h3>Day 1 → now</h3><div id="ownerHistorySummary" class="owner-list"></div><div class="owner-chart-wrap"><svg id="ownerProgressChart" class="owner-progress-chart" viewBox="0 0 360 150" role="img" aria-label="PI engineering activity trend"></svg><div id="ownerChartLegend" class="owner-chart-legend"></div></div></section>
+        <section><h3>Owner actions</h3><div id="ownerActionList" class="owner-list"></div></section>
         <section><h3>Release & production</h3><div id="ownerReleaseStatus" class="owner-list"></div></section>
         <section><h3>Payments</h3><div id="ownerPaymentStatus" class="owner-list"></div></section>
         <section><h3>Recent verified activity</h3><div id="ownerRecentActivity" class="owner-list"></div></section>

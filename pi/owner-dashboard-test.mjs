@@ -21,5 +21,12 @@ assert.ok(history.totals.commits >= 683,'verified_commit_history_regressed');
 assert.ok(history.totals.workflowRuns >= 5572,'verified_workflow_history_regressed');
 assert.ok(history.privacy.excluded.includes('revenue'),'revenue_must_stay_out_of_public_history');
 assert.ok(history.privacy.excluded.includes('secrets'),'secrets_must_stay_out_of_public_history');
+assert.equal(history.backfill?.status,'complete-for-supported-public-evidence','day1_backfill_contract_incomplete');
+assert.equal(history.backfill?.startsAt,'2026-09-15','day1_backfill_start_regressed');
+assert.equal(history.backfill?.unavailableFields?.additions,null,'unknown_additions_must_not_be_faked');
+assert.equal(history.backfill?.unavailableFields?.deletions,null,'unknown_deletions_must_not_be_faked');
+assert.equal(history.backfill?.unavailableFields?.filesChanged,null,'unknown_files_changed_must_not_be_faked');
+assert.ok(history.daily.every((row)=>Object.hasOwn(row,'additions') && Object.hasOwn(row,'deletions') && Object.hasOwn(row,'filesChanged')),'daily_code_volume_unknowns_must_be_explicit');
+assert.equal(history.daily.at(-1).snapshotPartialDay,true,'current_snapshot_must_be_marked_partial');
 
 console.log('PI owner privacy and Day 1 history contract tests passed.');

@@ -1,6 +1,10 @@
 name: PI Owner History Daily
 
 on:
+  push:
+    paths:
+      - 'pi/update-owner-history.mjs'
+      - '.github/workflows/pi-owner-history-daily.yml'
   schedule:
     - cron: '20 0 * * *'
   workflow_dispatch:

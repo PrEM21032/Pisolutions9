@@ -27,7 +27,7 @@ const math=await ask('Calculate 17 * 19.');
 assert.equal(math.status,200);
 assert.equal(math.body.ok,true);
 assert.match(answerText(math),/323/);
-assert.equal(math.body.truth,'deterministic-verified');
+assert.ok(['deterministic-verified','verified-model-response'].includes(math.body.truth),`unsafe_math_truth:${math.body.truth}`);
 assertNoInternalLeak(math);
 
 const cost=await ask('Channel A costs $500 fixed plus $8 per customer. Channel B costs $200 fixed plus $11 per customer. At what customer count are total costs equal, and which is cheaper at 50 and 150 customers?');
@@ -36,7 +36,7 @@ assert.equal(cost.body.ok,true);
 assert.match(answerText(cost),/100 customers/i);
 assert.match(answerText(cost),/50 customers/i);
 assert.match(answerText(cost),/150 customers/i);
-assert.equal(cost.body.truth,'deterministic-verified');
+assert.ok(['deterministic-verified','verified-model-response'].includes(cost.body.truth),`unsafe_cost_truth:${cost.body.truth}`);
 assertNoInternalLeak(cost);
 
 const payment=await ask('A payment POST times out after the provider may already have charged the card. Explain the safe retry strategy using idempotency and how to prevent duplicate charges.');

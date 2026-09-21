@@ -64,6 +64,17 @@ body = await response.json();
 assert.equal(response.status, 200);
 assert.equal(body.workspace, null);
 
+response = await ownerRequest('/api/owner/dashboard', { method:'GET' });
+assert.equal(response.status, 401);
+
+response = await ownerRequest('/api/owner/dashboard', { method:'GET', bearer:sessionToken });
+body = await response.json();
+assert.equal(response.status, 200);
+assert.equal(body.ok, true);
+assert.equal(body.history.verifiedDay1.date, '2026-09-15');
+assert.equal(body.history.verifiedDay1.commit, '20d9c93d34e2e58e569415e479144d6ab1374dfd');
+assert.ok(Array.isArray(body.history.daily) && body.history.daily.length >= 7);
+
 response = await ownerRequest('/api/owner/workspace', {
   bearer: sessionToken,
   body: {

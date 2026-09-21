@@ -32,6 +32,9 @@ const ownerPaymentStatus = document.querySelector('#ownerPaymentStatus');
 const ownerRecentActivity = document.querySelector('#ownerRecentActivity');
 const ownerProgressChart = document.querySelector('#ownerProgressChart');
 const ownerChartLegend = document.querySelector('#ownerChartLegend');
+const ownerSignOut = document.querySelector('#ownerSignOut');
+const ownerLastUpdated = document.querySelector('#ownerLastUpdated');
+const ownerActionList = document.querySelector('#ownerActionList');
 let attachedFile = null;
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 
@@ -424,9 +427,15 @@ async function refreshOwnerCommandCenter() {
     ownerPiStatus.className = readiness.productionActivationVerified ? 'owner-good' : 'owner-warn';
     ownerTeamStatus.textContent = (body?.team?.currentFocus || []).join(' · ') || 'Verified owner workspace active';
     ownerBlockers.textContent = actions.filter(x=>!/No credential/.test(x)).length ? String(actions.filter(x=>!/No credential/.test(x)).length) : '0';
-    ownerActions.textContent = actions[0] || 'No owner action detected';
+    ownerActions.textContent = actions.filter(x=>!/No credential/.test(x)).length ? `${actions.filter(x=>!/No credential/.test(x)).length} action(s)` : 'No action required';
     ownerSnapshotNote.textContent = latest.snapshotPartialDay ? 'Latest day is a partial verified snapshot; newer repository activity may exist.' : 'Verified repository/configuration snapshot.';
     ownerHistorySummary.replaceChildren();
+    ownerActionList?.replaceChildren();
+    if (ownerLastUpdated) ownerLastUpdated.textContent = `Last refreshed ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`;
+    if (ownerActionList) {
+      if (!actions.length) ownerLine(ownerActionList,'Action','No owner action detected','owner-good');
+      else actions.forEach((action,index)=>ownerLine(ownerActionList,`#${index+1}`,action,/No credential/.test(action)?'owner-good':'owner-warn'));
+    }
     renderOwnerProgressChart(daily);
     ownerLine(ownerHistorySummary,'Day 1',history.verifiedDay1?.date || 'Unknown');
     ownerLine(ownerHistorySummary,'Commits',totals.commits ?? 'Unknown');
@@ -455,6 +464,7 @@ async function refreshOwnerCommandCenter() {
   } finally { ownerRefresh.disabled=false; }
 }
 ownerRefresh?.addEventListener('click',()=>{ refreshOwnerCommandCenter(); });
+ownerSignOut?.addEventListener('click',()=>{ signOutOwner(); });
 
 async function loadOwnerWorkspace() {
   const body = await ownerRequest('/api/owner/workspace', { body:{action:'load'} });

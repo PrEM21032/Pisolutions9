@@ -1,22 +1,39 @@
 export const OWNER_HISTORY = Object.freeze({
   "schemaVersion": 1,
+  "scope": "public-engineering-evidence-only",
   "verifiedDay1": {
     "date": "2026-09-15",
     "commit": "20d9c93d34e2e58e569415e479144d6ab1374dfd",
     "message": "Build PI owner console foundation"
   },
-  "generatedAt": "2026-09-21T03:20:00Z",
-  "source": "GitHub repository evidence",
+  "source": "GitHub repository commits, issues, and Actions workflow runs",
+  "privacy": {
+    "containsPrivateTelemetry": false,
+    "excluded": [
+      "users",
+      "revenue",
+      "payments",
+      "refunds",
+      "profit",
+      "operating costs",
+      "secrets",
+      "credentials",
+      "private runtime data"
+    ]
+  },
   "limitations": [
-    "Commit additions/deletions/files-changed are not backfilled yet because exhaustive per-commit diff statistics require separate evidence collection.",
-    "Bug counts use GitHub issues only when issues exist; fixes committed without an issue are not inferred as bugs.",
-    "Issue reopen counts are unavailable until issue-event history is backfilled.",
-    "Revenue, users, costs, profit, and private runtime telemetry remain unavailable until verified private sources are connected."
+    "Bug counts only use GitHub issues when an issue exists; fixes made directly in commits are not inferred as bugs.",
+    "Historical additions, deletions, and files-changed are not included yet because exhaustive per-commit diff statistics were not fetched.",
+    "Workflow counts include all GitHub Actions runs on each UTC date; cancelled runs are tracked separately.",
+    "Private business and customer telemetry must be merged later through an authenticated private backend, never committed to this public repository.",
+    "Current-day rows are point-in-time snapshots. When snapshotPartialDay is true, newer repository activity may exist after snapshotThrough."
   ],
   "totals": {
     "commits": 683,
-    "trackedIssues": 17,
-    "currentOpenIssues": 9
+    "issuesCreated": 17,
+    "issuesClosed": 8,
+    "issuesOpen": 9,
+    "workflowRuns": 5572
   },
   "daily": [
     {
@@ -25,19 +42,17 @@ export const OWNER_HISTORY = Object.freeze({
       "issuesCreated": 3,
       "issuesClosed": 0,
       "workflowRuns": 333,
+      "workflowsCompleted": 333,
       "workflowsPassed": 288,
       "workflowsFailed": 45,
       "workflowsCancelled": 0,
       "releaseChecksPassed": 102,
       "releaseChecksFailed": 45,
-      "pagesDeploysPassed": 0,
-      "workerDeploysPassed": 0,
-      "milestones": [
-        "Wire PI 1000-input verification into suite",
-        "Add PI 1000 unique input output verification",
-        "Add PI V1 integrated release gate",
-        "Connect PI personal intelligence stack to autonomous runner"
-      ]
+      "pagesPassed": 0,
+      "workerPassed": 0,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-16",
@@ -45,19 +60,17 @@ export const OWNER_HISTORY = Object.freeze({
       "issuesCreated": 11,
       "issuesClosed": 0,
       "workflowRuns": 717,
+      "workflowsCompleted": 717,
       "workflowsPassed": 439,
       "workflowsFailed": 216,
       "workflowsCancelled": 62,
       "releaseChecksPassed": 220,
       "releaseChecksFailed": 73,
-      "pagesDeploysPassed": 119,
-      "workerDeploysPassed": 9,
-      "milestones": [
-        "trigger PI chat worker recovery deployment",
-        "strengthen PI deterministic provider recovery",
-        "recover customer chat on provider outage",
-        "add bounded provider fallback and rate-limit recovery"
-      ]
+      "pagesPassed": 119,
+      "workerPassed": 9,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-17",
@@ -65,19 +78,17 @@ export const OWNER_HISTORY = Object.freeze({
       "issuesCreated": 2,
       "issuesClosed": 0,
       "workflowRuns": 1118,
+      "workflowsCompleted": 1118,
       "workflowsPassed": 785,
       "workflowsFailed": 240,
       "workflowsCancelled": 93,
       "releaseChecksPassed": 310,
       "releaseChecksFailed": 76,
-      "pagesDeploysPassed": 111,
-      "workerDeploysPassed": 14,
-      "milestones": [
-        "test: reject runtime specialist execution without verifier",
-        "fix: require evidence for completed verification outcomes",
-        "feat: enforce mission guardrails in runtime",
-        "ci: add hourly live-model release watch"
-      ]
+      "pagesPassed": 111,
+      "workerPassed": 14,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-18",
@@ -85,14 +96,17 @@ export const OWNER_HISTORY = Object.freeze({
       "issuesCreated": 0,
       "issuesClosed": 0,
       "workflowRuns": 307,
+      "workflowsCompleted": 307,
       "workflowsPassed": 279,
       "workflowsFailed": 28,
       "workflowsCancelled": 0,
       "releaseChecksPassed": 0,
       "releaseChecksFailed": 0,
-      "pagesDeploysPassed": 0,
-      "workerDeploysPassed": 0,
-      "milestones": []
+      "pagesPassed": 0,
+      "workerPassed": 0,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-19",
@@ -100,19 +114,17 @@ export const OWNER_HISTORY = Object.freeze({
       "issuesCreated": 0,
       "issuesClosed": 1,
       "workflowRuns": 1161,
+      "workflowsCompleted": 1161,
       "workflowsPassed": 963,
       "workflowsFailed": 173,
       "workflowsCancelled": 19,
       "releaseChecksPassed": 445,
       "releaseChecksFailed": 18,
-      "pagesDeploysPassed": 71,
-      "workerDeploysPassed": 44,
-      "milestones": [
-        "Align runtime complex smoke with release safety contract (#93)",
-        "V1.02: persist recent conversation across browser sessions (#90)",
-        "V1.02: use fast edge model as independent reviewer",
-        "V1.02: close final live reliability gaps"
-      ]
+      "pagesPassed": 71,
+      "workerPassed": 44,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-20",
@@ -120,40 +132,113 @@ export const OWNER_HISTORY = Object.freeze({
       "issuesCreated": 1,
       "issuesClosed": 7,
       "workflowRuns": 1568,
+      "workflowsCompleted": 1568,
       "workflowsPassed": 979,
       "workflowsFailed": 237,
       "workflowsCancelled": 248,
       "releaseChecksPassed": 507,
       "releaseChecksFailed": 133,
-      "pagesDeploysPassed": 119,
-      "workerDeploysPassed": 38,
-      "milestones": [
-        "V1.02: resume unfinished autonomous missions",
-        "V1.02: persist autonomous mission state safely",
-        "V1.02: prevent false autonomous completion",
-        "Make Stripe test/live mode explicit and add live billing gate"
-      ]
+      "pagesPassed": 119,
+      "workerPassed": 38,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-21",
       "commits": 34,
       "issuesCreated": 0,
       "issuesClosed": 0,
-      "workflowRuns": 316,
-      "workflowsPassed": 169,
-      "workflowsFailed": 25,
-      "workflowsCancelled": 121,
-      "releaseChecksPassed": 90,
-      "releaseChecksFailed": 16,
-      "pagesDeploysPassed": 24,
-      "workerDeploysPassed": 10,
-      "milestones": [
-        "V1.02: lock owner monitor on public Pages",
-        "V1.02: remove public owner dashboard link",
-        "V1.02: add live owner activity monitor",
-        "V1.02: test dashboard read-only fallback"
-      ],
-      "snapshotPartialDay": true
+      "workflowRuns": 368,
+      "workflowsCompleted": 368,
+      "workflowsPassed": 195,
+      "workflowsFailed": 28,
+      "workflowsCancelled": 145,
+      "releaseChecksPassed": 103,
+      "releaseChecksFailed": 19,
+      "pagesPassed": 26,
+      "workerPassed": 13,
+      "snapshotPartialDay": true,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     }
-  ]
+  ],
+  "milestoneExamples": [
+    {
+      "date": "2026-09-15",
+      "sha": "20d9c93",
+      "message": "Build PI owner console foundation"
+    },
+    {
+      "date": "2026-09-15",
+      "sha": "cb40696",
+      "message": "Add PI V1 integrated release gate"
+    },
+    {
+      "date": "2026-09-16",
+      "sha": "a768185",
+      "message": "recover customer chat on provider outage"
+    },
+    {
+      "date": "2026-09-16",
+      "sha": "6742265",
+      "message": "add bounded provider fallback and rate-limit recovery"
+    },
+    {
+      "date": "2026-09-17",
+      "sha": "8676a86",
+      "message": "fix: require evidence for completed verification outcomes"
+    },
+    {
+      "date": "2026-09-17",
+      "sha": "f26951b",
+      "message": "feat: enforce mission guardrails in runtime"
+    },
+    {
+      "date": "2026-09-19",
+      "sha": "bad03f8",
+      "message": "V1.02: close final live reliability gaps"
+    },
+    {
+      "date": "2026-09-20",
+      "sha": "b60b0f3",
+      "message": "V1.02: prevent false autonomous completion"
+    },
+    {
+      "date": "2026-09-20",
+      "sha": "8fba7ab",
+      "message": "Fail closed on mixed Stripe test/live billing configuration"
+    },
+    {
+      "date": "2026-09-21",
+      "sha": "54005fb",
+      "message": "V1.02: lock owner monitor on public Pages"
+    }
+  ],
+  "backfill": {
+    "status": "complete-for-supported-public-evidence",
+    "startsAt": "2026-09-15",
+    "verifiedFields": [
+      "commits",
+      "issuesCreated",
+      "issuesClosed",
+      "issuesOpen",
+      "workflowRuns",
+      "workflowsCompleted",
+      "workflowsPassed",
+      "workflowsFailed",
+      "workflowsCancelled",
+      "releaseChecksPassed",
+      "releaseChecksFailed",
+      "pagesPassed",
+      "workerPassed"
+    ],
+    "unavailableFields": {
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null,
+      "reason": "Cumulative per-commit diff statistics have not been exhaustively collected; PI must not infer or display them as zero."
+    }
+  }
 });

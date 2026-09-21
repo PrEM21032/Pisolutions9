@@ -30,6 +30,8 @@ const ownerHistorySummary = document.querySelector('#ownerHistorySummary');
 const ownerReleaseStatus = document.querySelector('#ownerReleaseStatus');
 const ownerPaymentStatus = document.querySelector('#ownerPaymentStatus');
 const ownerRecentActivity = document.querySelector('#ownerRecentActivity');
+const ownerProgressChart = document.querySelector('#ownerProgressChart');
+const ownerChartLegend = document.querySelector('#ownerChartLegend');
 let attachedFile = null;
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 
@@ -378,6 +380,33 @@ function ownerLine(container, label, value, tone='') {
   p.append(strong, document.createTextNode(String(value ?? 'Unknown')));
   container.append(p);
 }
+
+function renderOwnerProgressChart(daily=[]) {
+  if (!ownerProgressChart || !ownerChartLegend) return;
+  ownerProgressChart.replaceChildren();
+  ownerChartLegend.replaceChildren();
+  const rows=(Array.isArray(daily)?daily:[]).filter(r=>r && typeof r.date==='string');
+  if (rows.length < 2) return;
+  const width=360, height=150, left=28, right=10, top=12, bottom=24;
+  const innerW=width-left-right, innerH=height-top-bottom;
+  const commits=rows.map(r=>Number(r.commits||0));
+  const runs=rows.map(r=>Number(r.workflowRuns||0));
+  const maxCommit=Math.max(1,...commits), maxRuns=Math.max(1,...runs);
+  const ns='http://www.w3.org/2000/svg';
+  const line=(x1,y1,x2,y2,cls)=>{const el=document.createElementNS(ns,'line');el.setAttribute('x1',x1);el.setAttribute('y1',y1);el.setAttribute('x2',x2);el.setAttribute('y2',y2);el.setAttribute('class',cls);ownerProgressChart.append(el);};
+  for(let i=0;i<4;i++){const y=top+(innerH*i/3);line(left,y,width-right,y,'owner-chart-grid');}
+  line(left,top,left,height-bottom,'owner-chart-axis'); line(left,height-bottom,width-right,height-bottom,'owner-chart-axis');
+  const xs=rows.map((_,i)=>left+(rows.length===1?0:(innerW*i/(rows.length-1))));
+  const points=(vals,max)=>vals.map((v,i)=>[xs[i], top+innerH-(innerH*(v/max))]);
+  const drawSeries=(pts,cls)=>{
+    const p=document.createElementNS(ns,'polyline');p.setAttribute('points',pts.map(([x,y])=>x+','+y).join(' '));p.setAttribute('class','owner-chart-line '+cls);ownerProgressChart.append(p);
+    for(const [x,y] of pts){const d=document.createElementNS(ns,'circle');d.setAttribute('cx',x);d.setAttribute('cy',y);d.setAttribute('r','2.7');d.setAttribute('class','owner-chart-dot '+cls);ownerProgressChart.append(d);}
+  };
+  drawSeries(points(commits,maxCommit),'owner-chart-primary'); drawSeries(points(runs,maxRuns),'owner-chart-secondary');
+  rows.forEach((r,i)=>{const t=document.createElementNS(ns,'text');t.setAttribute('x',xs[i]);t.setAttribute('y',height-7);t.setAttribute('text-anchor','middle');t.setAttribute('class','owner-chart-label');t.textContent=r.date.slice(5);ownerProgressChart.append(t);});
+  const makeLegend=(label,cls)=>{const s=document.createElement('span');s.className=cls;const i=document.createElement('i');const txt=document.createTextNode(label);s.append(i,txt);ownerChartLegend.append(s);};
+  makeLegend('Commits','owner-chart-primary');makeLegend('Workflow runs','owner-chart-secondary');
+}
 async function refreshOwnerCommandCenter() {
   if (!ownerMode || !ownerSession || !ownerCommandCenter) return;
   ownerRefresh.disabled=true;
@@ -397,6 +426,7 @@ async function refreshOwnerCommandCenter() {
     ownerActions.textContent = actions[0] || 'No owner action detected';
     ownerSnapshotNote.textContent = latest.snapshotPartialDay ? 'Latest day is a partial verified snapshot; newer repository activity may exist.' : 'Verified repository/configuration snapshot.';
     ownerHistorySummary.replaceChildren();
+    renderOwnerProgressChart(daily);
     ownerLine(ownerHistorySummary,'Day 1',history.verifiedDay1?.date || 'Unknown');
     ownerLine(ownerHistorySummary,'Commits',totals.commits ?? 'Unknown');
     ownerLine(ownerHistorySummary,'Issues open',totals.issuesOpen ?? totals.currentOpenIssues ?? 'Unknown');

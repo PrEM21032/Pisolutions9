@@ -95,7 +95,8 @@ history.backfill={...(history.backfill||{}),autoUpdate:{
   cadence:'daily',
   timezone:'UTC',
   finalizedThrough:target,
-  source:'GitHub REST API via authenticated GitHub Actions'
+  source:'GitHub REST API via authenticated GitHub Actions',
+  collectorVersion:1
 }};
 
 fs.writeFileSync(historyPath,JSON.stringify(history,null,2)+'\n');

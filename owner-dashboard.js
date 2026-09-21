@@ -70,11 +70,9 @@ function scoreSeries(commits,issues,runs){
 }
 async function load(){
   $('authState').textContent='Checking owner session…';
-  if(!(await ownerOk())){
-    $('authState').innerHTML='Owner session required. <a href="./">Sign in on PI first</a>, then open the dashboard again.';
-    return;
-  }
-  $('authState').classList.add('hidden');$('dashboard').classList.remove('hidden');
+  const privileged=await ownerOk();
+  $('authState').textContent=privileged ? 'Owner session active · private telemetry can be added safely.' : 'Read-only engineering view · private billing, user and cost telemetry remains hidden until owner authentication is configured.';
+  $('dashboard').classList.remove('hidden');
   $('refresh').disabled=true;
   try{
     const [commits,issues,runs]=await Promise.all([

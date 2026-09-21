@@ -1,142 +1,142 @@
 const REPO='pisolutions9/Pisolutions9';
 const API='https://api.github.com/repos/'+REPO;
-const OWNER_KEY='pi-v1-owner-session';
-const WORKER='https://pi-chat.premchandyadlapati.workers.dev';
-
 const $=id=>document.getElementById(id);
-function ownerToken(){try{return sessionStorage.getItem(OWNER_KEY)||'';}catch{return '';}}
-async function ownerOk(){
-  const token=ownerToken();
-  if(!/^[A-Za-z0-9_-]{43}$/.test(token))return false;
-  try{
-    const r=await fetch(WORKER+'/api/owner/status',{headers:{authorization:'Bearer '+token}});
-    return r.ok;
-  }catch{return false;}
-}
+let refreshTimer=null;
+
 async function gh(path){
   const r=await fetch(API+path,{headers:{accept:'application/vnd.github+json'}});
   if(!r.ok)throw new Error('github_'+r.status);
   return r.json();
 }
 function dayKey(value){return new Date(value).toISOString().slice(0,10);}
-function inRange(date,days){
-  if(days==='all')return true;
-  return Date.now()-new Date(date).getTime()<=Number(days)*86400000;
+function stateForRun(run){
+  if(!run)return '';
+  if(['queued','pending','in_progress','waiting'].includes(run.status))return 'working';
+  if(run.conclusion==='success')return 'good';
+  if(run.conclusion==='failure')return 'bad';
+  if(run.conclusion==='cancelled')return 'warn';
+  return '';
 }
-function pct(n,d){return d?Math.round(n/d*100):0;}
-function clamp(v){return Math.max(0,Math.min(100,Math.round(v)));}
 function item(parent,title,detail,state=''){
   const row=document.createElement('div');row.className='feed-item '+state;
+  const left=document.createElement('div');
   const h=document.createElement('strong');h.textContent=title;
   const p=document.createElement('span');p.textContent=detail;
-  row.append(h,p);parent.append(row);
+  left.append(h,p);
+  row.append(left);parent.append(row);
 }
-function capability(parent,name,state,detail){
-  const row=document.createElement('div');row.className='cap-row';
-  const left=document.createElement('div');const h=document.createElement('strong');h.textContent=name;const p=document.createElement('small');p.textContent=detail;left.append(h,p);
-  const badge=document.createElement('span');badge.className='cap-badge '+state.toLowerCase().replaceAll(' ','-');badge.textContent=state;
-  row.append(left,badge);parent.append(row);
+function clearAnd(parentId){const el=$(parentId);el.replaceChildren();return el;}
+function humanTime(value){
+  const d=new Date(value);if(Number.isNaN(d.getTime()))return '';
+  return d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 }
-function drawTrend(points){
-  const canvas=$('trend'),ctx=canvas.getContext('2d');const dpr=window.devicePixelRatio||1;
-  const width=canvas.clientWidth||1200,height=canvas.clientHeight||360;
-  canvas.width=Math.floor(width*dpr);canvas.height=Math.floor(height*dpr);ctx.scale(dpr,dpr);
-  ctx.clearRect(0,0,width,height);
-  const pad={l:42,r:18,t:20,b:34},w=width-pad.l-pad.r,h=height-pad.t-pad.b;
-  ctx.strokeStyle='rgba(130,160,200,.18)';ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){const y=pad.t+h*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(width-pad.r,y);ctx.stroke();}
-  if(!points.length)return;
-  ctx.strokeStyle='#69a9ff';ctx.lineWidth=3;ctx.beginPath();
-  points.forEach((p,i)=>{const x=pad.l+(points.length===1?w/2:i*w/(points.length-1));const y=pad.t+h-(p.score/100*h);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
-  ctx.stroke();
-  ctx.fillStyle='#9fb0c7';ctx.font='11px system-ui';ctx.fillText('100',6,pad.t+4);ctx.fillText('0',22,pad.t+h+4);
-  const first=points[0],last=points.at(-1);ctx.fillText(first.day,pad.l,pad.t+h+24);const tw=ctx.measureText(last.day).width;ctx.fillText(last.day,width-pad.r-tw,pad.t+h+24);
-}
-function scoreSeries(commits,issues,runs){
-  const days=[...new Set([...commits.map(c=>dayKey(c.commit.author?.date||c.commit.committer?.date)),...issues.map(i=>dayKey(i.created_at)),...runs.map(r=>dayKey(r.created_at))])].sort();
-  let totalCommits=0,resolved=0,totalIssues=0,completed=0,success=0,releaseEvidence=0;
-  return days.map(day=>{
-    totalCommits+=commits.filter(c=>dayKey(c.commit.author?.date||c.commit.committer?.date)===day).length;
-    totalIssues+=issues.filter(i=>dayKey(i.created_at)===day).length;
-    resolved+=issues.filter(i=>i.closed_at&&dayKey(i.closed_at)===day).length;
-    const dayRuns=runs.filter(r=>dayKey(r.created_at)===day&&r.status==='completed');completed+=dayRuns.length;success+=dayRuns.filter(r=>r.conclusion==='success').length;
-    releaseEvidence+=dayRuns.filter(r=>r.conclusion==='success'&&/V1\.02 Gate|V1 Launch Gate|PI Verify|Answer Quality|Chat Worker/.test(r.name)).length;
-    const ci=completed?pct(success,completed):0;
-    const issueResolution=totalIssues?Math.min(100,pct(resolved,totalIssues)):50;
-    const delivery=Math.min(100,totalCommits*4);
-    const release=Math.min(100,releaseEvidence*8);
-    return{day,score:clamp(ci*.35+issueResolution*.25+delivery*.20+release*.20)};
-  });
+function latestByName(runs){
+  const map=new Map();
+  for(const run of runs)if(!map.has(run.name))map.set(run.name,run);
+  return map;
 }
 async function load(){
-  $('authState').textContent='Checking owner session…';
-  const privileged=await ownerOk();
-  $('authState').textContent=privileged ? 'Owner session active · private telemetry can be added safely.' : 'Read-only engineering view · private billing, user and cost telemetry remains hidden until owner authentication is configured.';
-  $('dashboard').classList.remove('hidden');
   $('refresh').disabled=true;
+  $('modeNotice').textContent='Refreshing verified PI activity…';
   try{
-    const [commits,issues,runs]=await Promise.all([
-      gh('/commits?per_page=100'),
+    const [commits,issues,runData]=await Promise.all([
+      gh('/commits?per_page=60'),
       gh('/issues?state=all&per_page=100'),
-      gh('/actions/runs?per_page=100').then(x=>x.workflow_runs||[])
+      gh('/actions/runs?per_page=100')
     ]);
-    const days=$('range').value;
-    const filteredCommits=commits.filter(c=>inRange(c.commit.author?.date||c.commit.committer?.date,days));
+    const runs=runData.workflow_runs||[];
     const realIssues=issues.filter(i=>!i.pull_request);
-    const filteredIssues=realIssues.filter(i=>inRange(i.created_at,days)||i.closed_at&&inRange(i.closed_at,days));
-    const filteredRuns=runs.filter(r=>inRange(r.created_at,days));
-    const closed=filteredIssues.filter(i=>i.state==='closed');
-    const open=realIssues.filter(i=>i.state==='open');
-    const completed=filteredRuns.filter(r=>r.status==='completed');
-    const success=completed.filter(r=>r.conclusion==='success');
-    $('commits').textContent=filteredCommits.length;
-    $('issuesFixed').textContent=closed.length;
-    $('issuesOpen').textContent=open.length;
-    $('passRate').textContent=completed.length?pct(success.length,completed.length)+'%':'Unknown';
-
-    const series=scoreSeries(commits,realIssues,runs);
-    const shown=days==='all'?series:series.filter(p=>inRange(p.day,days));
-    drawTrend(shown);
-    $('scoreNow').textContent=shown.length?shown.at(-1).score+'/100':'Unknown';
-
     const today=dayKey(new Date());
     $('todayDate').textContent=today;
-    const todayBox=$('today');todayBox.replaceChildren();
-    const tc=commits.filter(c=>dayKey(c.commit.author?.date||c.commit.committer?.date)===today);
-    const ti=realIssues.filter(i=>i.closed_at&&dayKey(i.closed_at)===today);
-    const tr=runs.filter(r=>dayKey(r.created_at)===today&&r.status==='completed');
-    item(todayBox,'Commits',tc.length+' verified today');
-    item(todayBox,'Issues closed',ti.length+' verified today');
-    item(todayBox,'CI runs',tr.length+' completed · '+tr.filter(r=>r.conclusion==='success').length+' passed');
 
-    const blockerBox=$('blockers');blockerBox.replaceChildren();
-    const ownerAuthRun=runs.find(r=>r.name==='PI V1.02 Activation Gate');
-    if(ownerAuthRun?.conclusion==='failure')item(blockerBox,'Activation gate','Latest activation gate is failing; owner-auth/production activation evidence may still be incomplete.','warn');
-    const qualityRun=runs.find(r=>r.name==='PI Answer Quality');
-    if(qualityRun?.conclusion==='failure')item(blockerBox,'Answer quality','Latest answer-quality gate is failing and requires engineering correction.','bad');
-    if(!blockerBox.children.length)item(blockerBox,'No verified blocker detected','Latest sampled gates do not show a blocker.','good');
+    const todayCommits=commits.filter(c=>dayKey(c.commit.author?.date||c.commit.committer?.date)===today);
+    const todayFixed=realIssues.filter(i=>i.closed_at&&dayKey(i.closed_at)===today);
+    const todayRuns=runs.filter(r=>dayKey(r.created_at)===today&&r.status==='completed');
+    const todayPassed=todayRuns.filter(r=>r.conclusion==='success');
+    const todayFailed=todayRuns.filter(r=>r.conclusion==='failure');
+    $('commitsToday').textContent=todayCommits.length;
+    $('issuesFixedToday').textContent=todayFixed.length;
+    $('ciPassedToday').textContent=todayPassed.length;
+    $('ciFailedToday').textContent=todayFailed.length;
 
-    const wf=$('workflows');wf.replaceChildren();
-    const latestByName=new Map();
-    for(const run of runs){if(!latestByName.has(run.name))latestByName.set(run.name,run);}
-    [...latestByName.values()].slice(0,12).forEach(r=>item(wf,r.name,(r.conclusion||r.status)+' · '+dayKey(r.updated_at||r.created_at),r.conclusion==='success'?'good':r.conclusion==='failure'?'bad':''));
-    $('workflowSummary').textContent=completed.length+' completed in range';
+    const active=runs.filter(r=>['queued','pending','in_progress','waiting'].includes(r.status));
+    const latest=latestByName(runs);
+    const activation=latest.get('PI V1.02 Activation Gate');
+    const quality=latest.get('PI Answer Quality');
+    const v102=latest.get('PI V1.02 Gate');
+    const pages=latest.get('PI Pages');
+    const verify=latest.get('PI Verify');
 
-    const caps=$('capabilities');caps.replaceChildren();
-    capability(caps,'Conversational AI','Implemented','Customer chat and provider fallback exist.');
-    capability(caps,'Independent hard-answer verification','Implemented','Verifier/reviewer path exists; live quality gate still determines production reliability.');
-    capability(caps,'Cross-device session continuity','Implemented','Private sync and owner workspace are implemented.');
-    capability(caps,'Text → PDF','Missing','Required capability; not production-verified yet.');
-    capability(caps,'Owner dashboard','Implemented','This live evidence dashboard is the first usable version; deeper telemetry remains partial.');
-    capability(caps,'Revenue / profit telemetry','Blocked','Waiting for verified live billing data; no values are invented.');
-    capability(caps,'Cost ledger','Missing','No independently verified operating-cost source connected yet.');
+    if(active.length){
+      $('krishnaStatus').textContent='WORKING';
+      $('krishnaDetail').textContent=active.length+' GitHub workflow'+(active.length===1?' is':'s are')+' currently active.';
+    }else if(todayFailed.length){
+      $('krishnaStatus').textContent='FIXING / VERIFYING';
+      $('krishnaDetail').textContent='No workflow is running this second, but failed checks remain for Krishna to fix.';
+    }else{
+      $('krishnaStatus').textContent='IDLE BETWEEN CYCLES';
+      $('krishnaDetail').textContent='No workflow is running right now. Latest verified activity is shown below.';
+    }
 
-    const ms=$('milestones');ms.replaceChildren();
-    filteredCommits.slice(0,20).forEach(c=>item(ms,c.commit.message.split('\n')[0],dayKey(c.commit.author?.date||c.commit.committer?.date)));
-    $('lastUpdated').textContent='Updated '+new Date().toLocaleString();
+    const ownerBlocked=activation?.conclusion==='failure';
+    if(ownerBlocked){
+      $('ownerNeed').textContent='NOT NOW';
+      $('ownerReason').textContent='Activation has an owner-only blocker, but Krishna can continue engineering work without you.';
+    }else{
+      $('ownerNeed').textContent='NO ACTION';
+      $('ownerReason').textContent='No verified owner-only action is blocking current engineering work.';
+    }
+
+    const liveBox=clearAnd('liveWork');
+    if(active.length){
+      active.slice(0,10).forEach(r=>item(liveBox,r.name,(r.status||'active')+' · '+humanTime(r.updated_at||r.created_at),'working'));
+    }else{
+      item(liveBox,'No workflow running this second','PI can be between scheduled or triggered cycles. Check latest changes and release checks below.');
+    }
+
+    const blockerBox=clearAnd('blockers');
+    let blockerCount=0;
+    if(activation?.conclusion==='failure'){item(blockerBox,'Activation gate','Latest activation gate failed. This includes owner-auth / activation work that can remain deferred.','warn');blockerCount++;}
+    if(quality?.conclusion==='failure'){item(blockerBox,'Answer quality','Latest PI Answer Quality run failed. This is engineering work for Krishna.','bad');blockerCount++;}
+    if(v102?.conclusion==='failure'){item(blockerBox,'V1.02 gate','Latest V1.02 gate failed. This is not release-ready proof yet.','bad');blockerCount++;}
+    if(!blockerCount)item(blockerBox,'No verified blocker in sampled gates','Latest sampled release gates do not show a failure.','good');
+
+    const changes=clearAnd('changes');
+    commits.slice(0,12).forEach(c=>item(changes,c.commit.message.split('\n')[0],humanTime(c.commit.author?.date||c.commit.committer?.date)));
+
+    const checks=clearAnd('releaseChecks');
+    const names=['PI Verify','PI Pages','PI V1.02 Gate','PI V1 Launch Gate','PI V1 Live Model Gate','PI Answer Quality','PI V1.02 Activation Gate','PI Chat Worker'];
+    for(const name of names){
+      const r=latest.get(name);
+      if(!r)continue;
+      item(checks,name,(r.conclusion||r.status)+' · '+humanTime(r.updated_at||r.created_at),stateForRun(r));
+    }
+
+    const summary=clearAnd('todaySummary');
+    const summaryItems=[
+      ['Commits',todayCommits.length],
+      ['Issues fixed',todayFixed.length],
+      ['CI passed',todayPassed.length],
+      ['CI failed',todayFailed.length],
+      ['Open issues',realIssues.filter(i=>i.state==='open').length],
+      ['Active workflows',active.length]
+    ];
+    for(const [label,value] of summaryItems){
+      const box=document.createElement('div');const s=document.createElement('span');s.textContent=label;const strong=document.createElement('strong');strong.textContent=value;box.append(s,strong);summary.append(box);
+    }
+
+    $('liveUpdated').textContent='Updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+    $('modeNotice').textContent='Temporary owner monitor · verified GitHub data · auto-refresh every 60 seconds.';
   }catch(e){
-    $('authState').classList.remove('hidden');$('authState').textContent='Dashboard data temporarily unavailable: '+e.message;
-  }finally{$('refresh').disabled=false;}
+    $('modeNotice').textContent='Monitor data temporarily unavailable: '+e.message;
+    $('krishnaStatus').textContent='UNKNOWN';
+    $('krishnaDetail').textContent='Could not verify current GitHub activity.';
+  }finally{
+    $('refresh').disabled=false;
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(load,60000);
+  }
 }
-$('refresh').addEventListener('click',load);$('range').addEventListener('change',load);window.addEventListener('resize',()=>{clearTimeout(window.__piDashResize);window.__piDashResize=setTimeout(load,120);});
+$('refresh').addEventListener('click',load);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
 load();

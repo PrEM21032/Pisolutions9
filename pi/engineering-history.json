@@ -49,7 +49,10 @@
       "releaseChecksPassed": 102,
       "releaseChecksFailed": 45,
       "pagesPassed": 0,
-      "workerPassed": 0
+      "workerPassed": 0,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-16",
@@ -64,7 +67,10 @@
       "releaseChecksPassed": 220,
       "releaseChecksFailed": 73,
       "pagesPassed": 119,
-      "workerPassed": 9
+      "workerPassed": 9,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-17",
@@ -79,7 +85,10 @@
       "releaseChecksPassed": 310,
       "releaseChecksFailed": 76,
       "pagesPassed": 111,
-      "workerPassed": 14
+      "workerPassed": 14,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-18",
@@ -94,7 +103,10 @@
       "releaseChecksPassed": 0,
       "releaseChecksFailed": 0,
       "pagesPassed": 0,
-      "workerPassed": 0
+      "workerPassed": 0,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-19",
@@ -109,7 +121,10 @@
       "releaseChecksPassed": 445,
       "releaseChecksFailed": 18,
       "pagesPassed": 71,
-      "workerPassed": 44
+      "workerPassed": 44,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-20",
@@ -124,7 +139,10 @@
       "releaseChecksPassed": 507,
       "releaseChecksFailed": 133,
       "pagesPassed": 119,
-      "workerPassed": 38
+      "workerPassed": 38,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     },
     {
       "date": "2026-09-21",
@@ -140,7 +158,10 @@
       "releaseChecksFailed": 19,
       "pagesPassed": 26,
       "workerPassed": 13,
-      "snapshotPartialDay": true
+      "snapshotPartialDay": true,
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null
     }
   ],
   "milestoneExamples": [
@@ -194,5 +215,30 @@
       "sha": "54005fb",
       "message": "V1.02: lock owner monitor on public Pages"
     }
-  ]
+  ],
+  "backfill": {
+    "status": "complete-for-supported-public-evidence",
+    "startsAt": "2026-09-15",
+    "verifiedFields": [
+      "commits",
+      "issuesCreated",
+      "issuesClosed",
+      "issuesOpen",
+      "workflowRuns",
+      "workflowsCompleted",
+      "workflowsPassed",
+      "workflowsFailed",
+      "workflowsCancelled",
+      "releaseChecksPassed",
+      "releaseChecksFailed",
+      "pagesPassed",
+      "workerPassed"
+    ],
+    "unavailableFields": {
+      "additions": null,
+      "deletions": null,
+      "filesChanged": null,
+      "reason": "Cumulative per-commit diff statistics have not been exhaustively collected; PI must not infer or display them as zero."
+    }
+  }
 }

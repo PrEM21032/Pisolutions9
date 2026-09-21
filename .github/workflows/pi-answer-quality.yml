@@ -1,0 +1,35 @@
+name: PI Answer Quality
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 * * * *'
+  workflow_run:
+    workflows: ["PI Chat Worker"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-answer-quality
+  cancel-in-progress: true
+
+env:
+  PI_CHAT_URL: https://pi-chat.premchandyadlapati.workers.dev/api/chat
+
+jobs:
+  live-answer-quality:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify production answer quality
+        run: node pi/live-answer-quality-test.mjs

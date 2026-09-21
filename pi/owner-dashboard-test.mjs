@@ -4,17 +4,20 @@ import fs from 'node:fs';
 const html=fs.readFileSync('owner-dashboard.html','utf8');
 const js=fs.readFileSync('owner-dashboard.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
+const history=JSON.parse(fs.readFileSync('pi/owner-history.json','utf8'));
 
-for(const required of ['PI Owner Monitor','What is happening in PI?','KRISHNA STATUS','Live work','Blockers','Latest fixes / changes','Release checks','Today summary']){
-  assert.ok(html.includes(required), 'missing_owner_monitor_surface:'+required);
-}
-assert.ok(js.includes("setTimeout(load,60000)"),'owner_monitor_auto_refresh_missing');
-assert.ok(js.includes("PI V1.02 Activation Gate"),'activation_gate_monitor_missing');
-assert.ok(js.includes("PI Answer Quality"),'answer_quality_monitor_missing');
-assert.ok(js.includes("PI V1.02 Gate"),'v102_gate_monitor_missing');
-assert.ok(js.includes("NOT NOW"),'owner_deferred_state_missing');
-assert.ok(js.includes("NO ACTION"),'owner_no_action_state_missing');
-assert.ok(index.includes('id="ownerDashboard"'),'owner_dashboard_link_missing');
-assert.ok(index.includes('owner-dashboard.html'),'owner_dashboard_href_missing');
-assert.equal(js.includes('$0'),false,'owner_monitor_must_not_invent_money');
-console.log('PI temporary owner monitor contract tests passed.');
+assert.ok(html.includes('Private owner monitor'),'public_owner_lock_notice_missing');
+assert.ok(html.includes('disabled on the public PI website'),'public_owner_lock_missing');
+assert.equal(js.trim(),'// Owner monitor intentionally disabled on public GitHub Pages.','public_owner_js_must_remain_disabled');
+assert.equal(index.includes('id="ownerDashboard"'),false,'public_owner_dashboard_link_must_not_exist');
+
+assert.equal(history.verifiedDay1.date,'2026-09-15');
+assert.equal(history.verifiedDay1.commit,'20d9c93d34e2e58e569415e479144d6ab1374dfd');
+assert.equal(history.verifiedDay1.message,'Build PI owner console foundation');
+assert.ok(Array.isArray(history.daily) && history.daily.length >= 7,'owner_history_daily_backfill_missing');
+assert.equal(history.daily[0].date,'2026-09-15');
+assert.equal(history.daily[0].commits,172);
+assert.ok(history.daily.some(day=>day.date==='2026-09-20' && day.workflowRuns===1568),'owner_history_workflow_backfill_missing');
+assert.ok(history.limitations.some(x=>x.includes('Revenue')),'owner_history_unknown_private_metrics_not_documented');
+
+console.log('PI private owner history and public lock contract tests passed.');

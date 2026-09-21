@@ -32,6 +32,9 @@ const ownerPaymentStatus = document.querySelector('#ownerPaymentStatus');
 const ownerRecentActivity = document.querySelector('#ownerRecentActivity');
 const ownerProgressChart = document.querySelector('#ownerProgressChart');
 const ownerChartLegend = document.querySelector('#ownerChartLegend');
+const ownerChartTooltip = document.querySelector('#ownerChartTooltip');
+const ownerGrowthPercent = document.querySelector('#ownerGrowthPercent');
+const ownerDailyGrowth = document.querySelector('#ownerDailyGrowth');
 const ownerSignOut = document.querySelector('#ownerSignOut');
 const ownerLastUpdated = document.querySelector('#ownerLastUpdated');
 const ownerActionList = document.querySelector('#ownerActionList');
@@ -388,28 +391,110 @@ function renderOwnerProgressChart(daily=[]) {
   if (!ownerProgressChart || !ownerChartLegend) return;
   ownerProgressChart.replaceChildren();
   ownerChartLegend.replaceChildren();
+  ownerChartTooltip?.classList.add('hidden');
   const rows=(Array.isArray(daily)?daily:[]).filter(r=>r && typeof r.date==='string');
-  if (rows.length < 2) return;
-  const width=360, height=150, left=28, right=10, top=12, bottom=24;
+  if (rows.length < 1) return;
+
+  let cumulativeCommits=0, cumulativePassed=0;
+  const enriched=rows.map((r,index)=>{
+    const commits=Math.max(0,Number(r.commits||0));
+    const passed=Math.max(0,Number(r.workflowsPassed||0));
+    cumulativeCommits += commits;
+    cumulativePassed += passed;
+    return {...r,index,commits,passed,cumulativeCommits,cumulativePassed};
+  });
+  const baseCommits=Math.max(1,enriched[0].cumulativeCommits);
+  const basePassed=Math.max(1,enriched[0].cumulativePassed);
+  enriched.forEach((r,index)=>{
+    r.growthIndex=((r.cumulativeCommits/baseCommits)+(r.cumulativePassed/basePassed))*50;
+    r.growthSinceDay1=r.growthIndex-100;
+    r.dailyGrowth=index===0 ? 0 : r.growthIndex-enriched[index-1].growthIndex;
+  });
+
+  const latest=enriched.at(-1);
+  if (ownerGrowthPercent) ownerGrowthPercent.textContent=(latest.growthSinceDay1>=0?'+':'')+latest.growthSinceDay1.toFixed(1)+'%';
+  if (ownerDailyGrowth) ownerDailyGrowth.textContent=(latest.dailyGrowth>=0?'+':'')+latest.dailyGrowth.toFixed(1)+' pts';
+
+  const width=360, height=180, left=34, right=12, top=18, bottom=30;
   const innerW=width-left-right, innerH=height-top-bottom;
-  const commits=rows.map(r=>Number(r.commits||0));
-  const runs=rows.map(r=>Number(r.workflowRuns||0));
-  const maxCommit=Math.max(1,...commits), maxRuns=Math.max(1,...runs);
+  const maxGrowth=Math.max(110,...enriched.map(r=>r.growthIndex));
+  const minGrowth=Math.min(100,...enriched.map(r=>r.growthIndex));
+  const span=Math.max(10,maxGrowth-minGrowth);
+  const chartMin=Math.max(0,minGrowth-span*.08), chartMax=maxGrowth+span*.08;
   const ns='http://www.w3.org/2000/svg';
-  const line=(x1,y1,x2,y2,cls)=>{const el=document.createElementNS(ns,'line');el.setAttribute('x1',x1);el.setAttribute('y1',y1);el.setAttribute('x2',x2);el.setAttribute('y2',y2);el.setAttribute('class',cls);ownerProgressChart.append(el);};
-  for(let i=0;i<4;i++){const y=top+(innerH*i/3);line(left,y,width-right,y,'owner-chart-grid');}
-  line(left,top,left,height-bottom,'owner-chart-axis'); line(left,height-bottom,width-right,height-bottom,'owner-chart-axis');
-  const xs=rows.map((_,i)=>left+(rows.length===1?0:(innerW*i/(rows.length-1))));
-  const points=(vals,max)=>vals.map((v,i)=>[xs[i], top+innerH-(innerH*(v/max))]);
-  const drawSeries=(pts,cls)=>{
-    const p=document.createElementNS(ns,'polyline');p.setAttribute('points',pts.map(([x,y])=>x+','+y).join(' '));p.setAttribute('class','owner-chart-line '+cls);ownerProgressChart.append(p);
-    for(const [x,y] of pts){const d=document.createElementNS(ns,'circle');d.setAttribute('cx',x);d.setAttribute('cy',y);d.setAttribute('r','2.7');d.setAttribute('class','owner-chart-dot '+cls);ownerProgressChart.append(d);}
+  const make=(tag,attrs={})=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));return el;};
+  const xAt=i=>left+(enriched.length===1?innerW/2:innerW*i/(enriched.length-1));
+  const yAt=value=>top+innerH-(innerH*((value-chartMin)/(chartMax-chartMin)));
+
+  for(let i=0;i<4;i++){
+    const y=top+(innerH*i/3);
+    ownerProgressChart.append(make('line',{x1:left,y1:y,x2:width-right,y2:y,class:'owner-chart-grid'}));
+    const value=chartMax-(chartMax-chartMin)*(i/3);
+    const label=make('text',{x:left-5,y:y+3,'text-anchor':'end',class:'owner-chart-label'});
+    label.textContent=Math.round(value);
+    ownerProgressChart.append(label);
+  }
+  ownerProgressChart.append(make('line',{x1:left,y1:top,x2:left,y2:height-bottom,class:'owner-chart-axis'}));
+  ownerProgressChart.append(make('line',{x1:left,y1:height-bottom,x2:width-right,y2:height-bottom,class:'owner-chart-axis'}));
+
+  const points=enriched.map((r,i)=>[xAt(i),yAt(r.growthIndex)]);
+  const poly=make('polyline',{points:points.map(([x,y])=>x+','+y).join(' '),class:'owner-chart-line owner-chart-growth'});
+  ownerProgressChart.append(poly);
+  points.forEach(([x,y])=>ownerProgressChart.append(make('circle',{cx:x,cy:y,r:3,class:'owner-chart-dot owner-chart-growth'})));
+
+  enriched.forEach((r,i)=>{
+    const showLabel=enriched.length<=10 || i===0 || i===enriched.length-1 || i%Math.ceil(enriched.length/7)===0;
+    if (!showLabel) return;
+    const t=make('text',{x:xAt(i),y:height-8,'text-anchor':'middle',class:'owner-chart-label'});
+    t.textContent=r.date.slice(5);
+    ownerProgressChart.append(t);
+  });
+
+  const guide=make('line',{x1:left,y1:top,x2:left,y2:height-bottom,class:'owner-chart-guide'});
+  const focus=make('circle',{cx:left,cy:yAt(enriched[0].growthIndex),r:5,class:'owner-chart-focus'});
+  guide.style.display='none'; focus.style.display='none';
+  ownerProgressChart.append(guide,focus);
+
+  const showPoint=index=>{
+    const r=enriched[Math.max(0,Math.min(enriched.length-1,index))];
+    const x=xAt(r.index), y=yAt(r.growthIndex);
+    guide.setAttribute('x1',x);guide.setAttribute('x2',x);guide.style.display='';
+    focus.setAttribute('cx',x);focus.setAttribute('cy',y);focus.style.display='';
+    if (ownerChartTooltip) {
+      ownerChartTooltip.replaceChildren();
+      const title=document.createElement('strong'); title.textContent=r.date;
+      const values=document.createElement('span');
+      values.textContent='Growth index '+r.growthIndex.toFixed(1)+' · Since Day 1 '+(r.growthSinceDay1>=0?'+':'')+r.growthSinceDay1.toFixed(1)+'% · Day '+(r.dailyGrowth>=0?'+':'')+r.dailyGrowth.toFixed(1)+' pts · Commits '+r.commits+' · Passed workflows '+r.passed;
+      ownerChartTooltip.append(title,values);
+      ownerChartTooltip.classList.remove('hidden');
+    }
   };
-  drawSeries(points(commits,maxCommit),'owner-chart-primary'); drawSeries(points(runs,maxRuns),'owner-chart-secondary');
-  rows.forEach((r,i)=>{const t=document.createElementNS(ns,'text');t.setAttribute('x',xs[i]);t.setAttribute('y',height-7);t.setAttribute('text-anchor','middle');t.setAttribute('class','owner-chart-label');t.textContent=r.date.slice(5);ownerProgressChart.append(t);});
-  const makeLegend=(label,cls)=>{const s=document.createElement('span');s.className=cls;const i=document.createElement('i');const txt=document.createTextNode(label);s.append(i,txt);ownerChartLegend.append(s);};
-  makeLegend('Commits','owner-chart-primary');makeLegend('Workflow runs','owner-chart-secondary');
+  const pointFromClientX=clientX=>{
+    const rect=ownerProgressChart.getBoundingClientRect();
+    const svgX=(clientX-rect.left)*(width/Math.max(1,rect.width));
+    if(enriched.length===1) return 0;
+    return Math.round(((svgX-left)/innerW)*(enriched.length-1));
+  };
+  ownerProgressChart.onpointerdown=e=>{ownerProgressChart.setPointerCapture?.(e.pointerId);showPoint(pointFromClientX(e.clientX));};
+  ownerProgressChart.onpointermove=e=>{if(e.pointerType==='mouse' || ownerProgressChart.hasPointerCapture?.(e.pointerId))showPoint(pointFromClientX(e.clientX));};
+  ownerProgressChart.onpointerup=e=>{ownerProgressChart.releasePointerCapture?.(e.pointerId);showPoint(pointFromClientX(e.clientX));};
+  ownerProgressChart.onkeydown=e=>{
+    const current=Number(ownerProgressChart.dataset.focusIndex||enriched.length-1);
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+      e.preventDefault();
+      const next=Math.max(0,Math.min(enriched.length-1,current+(e.key==='ArrowRight'?1:-1)));
+      ownerProgressChart.dataset.focusIndex=String(next);showPoint(next);
+    }
+  };
+  ownerProgressChart.dataset.focusIndex=String(enriched.length-1);
+
+  const legend=document.createElement('span');
+  legend.className='owner-chart-growth';
+  const key=document.createElement('i');
+  legend.append(key,document.createTextNode('Verified engineering growth index'));
+  ownerChartLegend.append(legend);
 }
+
 async function refreshOwnerCommandCenter() {
   if (!ownerMode || !ownerSession || !ownerCommandCenter) return;
   ownerRefresh.disabled=true;

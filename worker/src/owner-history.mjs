@@ -245,7 +245,8 @@ export const OWNER_HISTORY = Object.freeze({
       "cadence": "daily",
       "timezone": "UTC",
       "finalizedThrough": "2026-09-20",
-      "source": "GitHub REST API via authenticated GitHub Actions"
+      "source": "GitHub REST API via authenticated GitHub Actions",
+      "collectorVersion": 1
     }
   }
 });

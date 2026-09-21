@@ -74,6 +74,13 @@ assert.equal(body.ok, true);
 assert.equal(body.history.verifiedDay1.date, '2026-09-15');
 assert.equal(body.history.verifiedDay1.commit, '20d9c93d34e2e58e569415e479144d6ab1374dfd');
 assert.ok(Array.isArray(body.history.daily) && body.history.daily.length >= 7);
+assert.equal(body.history.backfill.status,'complete-for-supported-public-evidence');
+assert.equal(body.readiness.ownerAuthConfigured,true);
+assert.equal(body.readiness.billingConfigured,false);
+assert.equal(body.readiness.productionActivationVerified,false);
+assert.equal(body.readiness.customerChargingVerified,false);
+assert.ok(Array.isArray(body.ownerActions) && body.ownerActions.length >= 1);
+assert.equal(JSON.stringify(body).includes(env.PI_OWNER_TOKEN),false);
 
 response = await ownerRequest('/api/owner/workspace', {
   bearer: sessionToken,

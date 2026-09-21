@@ -136,8 +136,8 @@ export const OWNER_HISTORY = Object.freeze({
       "workflowsPassed": 979,
       "workflowsFailed": 237,
       "workflowsCancelled": 248,
-      "releaseChecksPassed": 507,
-      "releaseChecksFailed": 133,
+      "releaseChecksPassed": 404,
+      "releaseChecksFailed": 94,
       "pagesPassed": 119,
       "workerPassed": 38,
       "additions": null,
@@ -239,6 +239,13 @@ export const OWNER_HISTORY = Object.freeze({
       "deletions": null,
       "filesChanged": null,
       "reason": "Cumulative per-commit diff statistics have not been exhaustively collected; PI must not infer or display them as zero."
+    },
+    "autoUpdate": {
+      "enabled": true,
+      "cadence": "daily",
+      "timezone": "UTC",
+      "finalizedThrough": "2026-09-20",
+      "source": "GitHub REST API via authenticated GitHub Actions"
     }
   }
 });

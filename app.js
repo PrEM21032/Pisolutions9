@@ -35,6 +35,7 @@ const ownerChartLegend = document.querySelector('#ownerChartLegend');
 const ownerChartTooltip = document.querySelector('#ownerChartTooltip');
 const ownerGrowthPercent = document.querySelector('#ownerGrowthPercent');
 const ownerDailyGrowth = document.querySelector('#ownerDailyGrowth');
+const ownerSecurityStatus = document.querySelector('#ownerSecurityStatus');
 const ownerSignOut = document.querySelector('#ownerSignOut');
 const ownerLastUpdated = document.querySelector('#ownerLastUpdated');
 const ownerActionList = document.querySelector('#ownerActionList');
@@ -506,6 +507,7 @@ async function refreshOwnerCommandCenter() {
     const latest=daily.at(-1) || {};
     const totals=history.totals || {};
     const actions=Array.isArray(body?.ownerActions)?body.ownerActions:[];
+    const security=body?.security || {};
     ownerCommandCenter.classList.remove('hidden');
     document.body.classList.add('owner-mode');
     ownerPiStatus.textContent = readiness.productionActivationVerified ? 'Production activation verified' : 'Engineering ready; production activation not verified';
@@ -513,6 +515,11 @@ async function refreshOwnerCommandCenter() {
     ownerTeamStatus.textContent = (body?.team?.currentFocus || []).join(' · ') || 'Verified owner workspace active';
     ownerBlockers.textContent = actions.filter(x=>!/No credential/.test(x)).length ? String(actions.filter(x=>!/No credential/.test(x)).length) : '0';
     ownerActions.textContent = actions.filter(x=>!/No credential/.test(x)).length ? `${actions.filter(x=>!/No credential/.test(x)).length} action(s)` : 'No action required';
+    if (ownerSecurityStatus) {
+      const layers=[security.originRestricted,security.bearerSessionRequired,security.noStore,security.loginRateLimited].filter(Boolean).length;
+      ownerSecurityStatus.textContent = layers >= 4 ? '4 layers active' : `${layers}/4 layers active`;
+      ownerSecurityStatus.className = layers >= 4 ? 'owner-good' : 'owner-warn';
+    }
     ownerSnapshotNote.textContent = latest.snapshotPartialDay ? 'Latest day is a partial verified snapshot; newer repository activity may exist.' : 'Verified repository/configuration snapshot.';
     ownerHistorySummary.replaceChildren();
     ownerActionList?.replaceChildren();

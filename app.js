@@ -419,6 +419,7 @@ async function refreshOwnerCommandCenter() {
     const totals=history.totals || {};
     const actions=Array.isArray(body?.ownerActions)?body.ownerActions:[];
     ownerCommandCenter.classList.remove('hidden');
+    document.body.classList.add('owner-mode');
     ownerPiStatus.textContent = readiness.productionActivationVerified ? 'Production activation verified' : 'Engineering ready; production activation not verified';
     ownerPiStatus.className = readiness.productionActivationVerified ? 'owner-good' : 'owner-warn';
     ownerTeamStatus.textContent = (body?.team?.currentFocus || []).join(' · ') || 'Verified owner workspace active';
@@ -447,6 +448,7 @@ async function refreshOwnerCommandCenter() {
     for(const item of milestones) ownerLine(ownerRecentActivity,item.date || 'Date',item.message || 'Verified repository activity');
   } catch {
     ownerCommandCenter.classList.remove('hidden');
+    document.body.classList.add('owner-mode');
     ownerPiStatus.textContent='Owner dashboard data unavailable';
     ownerPiStatus.className='owner-bad';
     ownerSnapshotNote.textContent='Authenticated owner session is active, but dashboard data could not be loaded.';
@@ -468,12 +470,13 @@ async function loadOwnerWorkspace() {
     renderConversation();
     command.style.height = 'auto';
     command.style.height = Math.min(command.scrollHeight, 140) + 'px';
-    ownerAccess.textContent = 'Owner signed in';
+    ownerAccess.textContent = 'Owner dashboard';
     syncDevice.disabled = true;
     syncDevice.title = 'Owner workspace sync is automatic';
     updateSyncUi('Authenticated owner workspace is active. Changes sync automatically across signed-in devices.');
     setStatus('Owner workspace ready');
     await refreshOwnerCommandCenter();
+    ownerCommandCenter?.scrollIntoView({behavior:'smooth',block:'start'});
   } finally { applyingRemoteSession = false; }
 }
 async function restoreOwnerSession() {
@@ -506,6 +509,7 @@ async function signOutOwner() {
   try { sessionStorage.removeItem(OWNER_SESSION_KEY); } catch {}
   ownerAccess.textContent = 'Owner sign in';
   ownerCommandCenter?.classList.add('hidden');
+  document.body.classList.remove('owner-mode');
   syncDevice.disabled = false;
   syncDevice.title = '';
   try {
@@ -519,7 +523,7 @@ async function signOutOwner() {
 }
 ownerAccess?.addEventListener('click', async () => {
   if (ownerMode) {
-    if (window.confirm('Sign out of the owner workspace on this device?')) await signOutOwner();
+    ownerCommandCenter?.scrollIntoView({behavior:'smooth',block:'start'});
     return;
   }
   ownerLoginError.classList.add('hidden');

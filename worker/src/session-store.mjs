@@ -414,6 +414,13 @@ export async function handleOwnerRequest(request, env, allowedOrigin) {
         customerChargingVerified: false
       },
       ownerActions: actions,
+      security: {
+        originRestricted: true,
+        bearerSessionRequired: true,
+        noStore: true,
+        loginRateLimited: true,
+        sessionTtlHours: 12
+      },
       team: {
         orchestrator: 'Krishna',
         mode: 'verification-first',

@@ -8,7 +8,7 @@
   <meta name="description" content="PI — Think. Plan. Execute. With You." />
   <title>PI — Assistant</title>
   <link rel="canonical" href="https://pisolutions9.github.io/Pisolutions9/" />
-  <link rel="stylesheet" href="styles.css?v=20260921-owner-dashboard-final" />
+  <link rel="stylesheet" href="styles.css?v=20260921-owner-growth-interactive" />
 </head>
 <body>
   <main class="shell">
@@ -31,7 +31,7 @@
         <article><span>Your actions</span><strong id="ownerActions">—</strong></article>
       </div>
       <div class="owner-sections">
-        <section><h3>Day 1 → now</h3><div id="ownerHistorySummary" class="owner-list"></div><div class="owner-chart-wrap"><svg id="ownerProgressChart" class="owner-progress-chart" viewBox="0 0 360 150" role="img" aria-label="PI engineering activity trend"></svg><div id="ownerChartLegend" class="owner-chart-legend"></div></div></section>
+        <section><h3>Day 1 → now</h3><div id="ownerHistorySummary" class="owner-list"></div><div class="owner-chart-wrap"><div class="owner-growth-head"><div><strong id="ownerGrowthPercent">0%</strong><span>Verified engineering growth since Day 1</span></div><div><strong id="ownerDailyGrowth">0%</strong><span>Latest day growth</span></div></div><div class="owner-chart-stage"><svg id="ownerProgressChart" class="owner-progress-chart" viewBox="0 0 360 180" role="img" aria-label="PI verified engineering growth trend. Touch or drag for daily values." tabindex="0"></svg><div id="ownerChartTooltip" class="owner-chart-tooltip hidden" aria-live="polite"></div></div><div id="ownerChartLegend" class="owner-chart-legend"></div><p class="owner-chart-method">Growth index: Day 1 = 100. Equal-weight average of cumulative commits and cumulative passed workflows. This measures verified engineering activity, not PI intelligence or capability.</p></div></section>
         <section><h3>Owner actions</h3><div id="ownerActionList" class="owner-list"></div></section>
         <section><h3>Release & production</h3><div id="ownerReleaseStatus" class="owner-list"></div></section>
         <section><h3>Payments</h3><div id="ownerPaymentStatus" class="owner-list"></div></section>
@@ -89,6 +89,6 @@
     </dialog>
     <input id="ownerToken" type="hidden" value="" />
   </main>
-  <script type="module" src="app.js?v=20260921-owner-dashboard-final"></script>
+  <script type="module" src="app.js?v=20260921-owner-growth-interactive"></script>
 </body>
 </html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.github.com https://pi-chat.premchandyadlapati.workers.dev; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; upgrade-insecure-requests" />
+  <title>PI Owner Dashboard</title>
+  <link rel="stylesheet" href="owner-dashboard.css" />
+</head>
+<body>
+  <main class="dashboard-shell">
+    <header class="dashboard-topbar">
+      <div>
+        <p class="eyebrow">PI · OWNER</p>
+        <h1>PI Progress Dashboard</h1>
+        <p class="subtitle">Verified development evidence. Unknown means not connected or not independently measured.</p>
+      </div>
+      <div class="header-actions">
+        <select id="range" aria-label="Time range"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="all">All available</option></select>
+        <button id="refresh" type="button">Refresh</button>
+        <a href="./">Back to PI</a>
+      </div>
+    </header>
+
+    <section id="authState" class="notice">Checking owner session…</section>
+
+    <section id="dashboard" class="hidden">
+      <div class="cards">
+        <article><span>Commits</span><strong id="commits">—</strong><small>Verified GitHub commits</small></article>
+        <article><span>Issues fixed</span><strong id="issuesFixed">—</strong><small>Closed issues in range</small></article>
+        <article><span>Open issues</span><strong id="issuesOpen">—</strong><small>Current open issues</small></article>
+        <article><span>Workflow pass rate</span><strong id="passRate">—</strong><small>Completed CI runs</small></article>
+        <article><span>Revenue</span><strong id="revenue">Unknown</strong><small>Requires verified billing telemetry</small></article>
+        <article><span>Money invested</span><strong id="invested">Unknown</strong><small>Requires verified cost ledger</small></article>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head"><div><p class="eyebrow">TREND</p><h2>PI improvement from Day 1</h2></div><span id="scoreNow">—</span></div>
+        <canvas id="trend" width="1200" height="360" aria-label="PI improvement trend"></canvas>
+        <p class="formula">Score = 35% CI reliability + 25% issue resolution + 20% delivery activity + 20% release evidence. It is a transparent engineering indicator, not a claim of intelligence.</p>
+      </section>
+
+      <div class="two-col">
+        <section class="panel"><div class="panel-head"><h2>Today</h2><span id="todayDate"></span></div><div id="today" class="feed"></div></section>
+        <section class="panel"><div class="panel-head"><h2>Current blockers</h2><span>Verified only</span></div><div id="blockers" class="feed"></div></section>
+      </div>
+
+      <div class="two-col">
+        <section class="panel"><div class="panel-head"><h2>Workflow health</h2><span id="workflowSummary"></span></div><div id="workflows" class="feed"></div></section>
+        <section class="panel"><div class="panel-head"><h2>Capability matrix</h2><span>Live status</span></div><div id="capabilities" class="capabilities"></div></section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Recent milestones</h2><span id="lastUpdated">—</span></div>
+        <div id="milestones" class="feed"></div>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="owner-dashboard.js"></script>
+</body>
+</html>

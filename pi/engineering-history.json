@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "scope": "public-engineering-evidence-only",
+  "verifiedDay1": {
+    "date": "2026-09-15",
+    "commit": "20d9c93d34e2e58e569415e479144d6ab1374dfd",
+    "message": "Build PI owner console foundation"
+  },
+  "source": "GitHub repository commits, issues, and Actions workflow runs",
+  "privacy": {
+    "containsPrivateTelemetry": false,
+    "excluded": [
+      "users",
+      "revenue",
+      "payments",
+      "refunds",
+      "profit",
+      "operating costs",
+      "secrets",
+      "credentials",
+      "private runtime data"
+    ]
+  },
+  "limitations": [
+    "Bug counts only use GitHub issues when an issue exists; fixes made directly in commits are not inferred as bugs.",
+    "Historical additions, deletions, and files-changed are not included yet because exhaustive per-commit diff statistics were not fetched.",
+    "Workflow counts include all GitHub Actions runs on each UTC date; cancelled runs are tracked separately.",
+    "Private business and customer telemetry must be merged later through an authenticated private backend, never committed to this public repository."
+  ],
+  "totals": {
+    "commits": 683,
+    "issuesCreated": 17,
+    "issuesClosed": 8,
+    "issuesOpen": 9,
+    "workflowRuns": 5572
+  },
+  "daily": [
+    {
+      "date": "2026-09-15",
+      "commits": 172,
+      "issuesCreated": 3,
+      "issuesClosed": 0,
+      "workflowRuns": 333,
+      "workflowsCompleted": 333,
+      "workflowsPassed": 288,
+      "workflowsFailed": 45,
+      "workflowsCancelled": 0,
+      "releaseChecksPassed": 102,
+      "releaseChecksFailed": 45,
+      "pagesPassed": 0,
+      "workerPassed": 0
+    },
+    {
+      "date": "2026-09-16",
+      "commits": 142,
+      "issuesCreated": 11,
+      "issuesClosed": 0,
+      "workflowRuns": 717,
+      "workflowsCompleted": 717,
+      "workflowsPassed": 439,
+      "workflowsFailed": 216,
+      "workflowsCancelled": 62,
+      "releaseChecksPassed": 220,
+      "releaseChecksFailed": 73,
+      "pagesPassed": 119,
+      "workerPassed": 9
+    },
+    {
+      "date": "2026-09-17",
+      "commits": 126,
+      "issuesCreated": 2,
+      "issuesClosed": 0,
+      "workflowRuns": 1118,
+      "workflowsCompleted": 1118,
+      "workflowsPassed": 785,
+      "workflowsFailed": 240,
+      "workflowsCancelled": 93,
+      "releaseChecksPassed": 310,
+      "releaseChecksFailed": 76,
+      "pagesPassed": 111,
+      "workerPassed": 14
+    },
+    {
+      "date": "2026-09-18",
+      "commits": 0,
+      "issuesCreated": 0,
+      "issuesClosed": 0,
+      "workflowRuns": 307,
+      "workflowsCompleted": 307,
+      "workflowsPassed": 279,
+      "workflowsFailed": 28,
+      "workflowsCancelled": 0,
+      "releaseChecksPassed": 0,
+      "releaseChecksFailed": 0,
+      "pagesPassed": 0,
+      "workerPassed": 0
+    },
+    {
+      "date": "2026-09-19",
+      "commits": 73,
+      "issuesCreated": 0,
+      "issuesClosed": 1,
+      "workflowRuns": 1161,
+      "workflowsCompleted": 1161,
+      "workflowsPassed": 963,
+      "workflowsFailed": 173,
+      "workflowsCancelled": 19,
+      "releaseChecksPassed": 445,
+      "releaseChecksFailed": 18,
+      "pagesPassed": 71,
+      "workerPassed": 44
+    },
+    {
+      "date": "2026-09-20",
+      "commits": 136,
+      "issuesCreated": 1,
+      "issuesClosed": 7,
+      "workflowRuns": 1568,
+      "workflowsCompleted": 1568,
+      "workflowsPassed": 979,
+      "workflowsFailed": 237,
+      "workflowsCancelled": 248,
+      "releaseChecksPassed": 507,
+      "releaseChecksFailed": 133,
+      "pagesPassed": 119,
+      "workerPassed": 38
+    },
+    {
+      "date": "2026-09-21",
+      "commits": 34,
+      "issuesCreated": 0,
+      "issuesClosed": 0,
+      "workflowRuns": 368,
+      "workflowsCompleted": 368,
+      "workflowsPassed": 195,
+      "workflowsFailed": 28,
+      "workflowsCancelled": 145,
+      "releaseChecksPassed": 103,
+      "releaseChecksFailed": 19,
+      "pagesPassed": 26,
+      "workerPassed": 13
+    }
+  ],
+  "milestoneExamples": [
+    {
+      "date": "2026-09-15",
+      "sha": "20d9c93",
+      "message": "Build PI owner console foundation"
+    },
+    {
+      "date": "2026-09-15",
+      "sha": "cb40696",
+      "message": "Add PI V1 integrated release gate"
+    },
+    {
+      "date": "2026-09-16",
+      "sha": "a768185",
+      "message": "recover customer chat on provider outage"
+    },
+    {
+      "date": "2026-09-16",
+      "sha": "6742265",
+      "message": "add bounded provider fallback and rate-limit recovery"
+    },
+    {
+      "date": "2026-09-17",
+      "sha": "8676a86",
+      "message": "fix: require evidence for completed verification outcomes"
+    },
+    {
+      "date": "2026-09-17",
+      "sha": "f26951b",
+      "message": "feat: enforce mission guardrails in runtime"
+    },
+    {
+      "date": "2026-09-19",
+      "sha": "bad03f8",
+      "message": "V1.02: close final live reliability gaps"
+    },
+    {
+      "date": "2026-09-20",
+      "sha": "b60b0f3",
+      "message": "V1.02: prevent false autonomous completion"
+    },
+    {
+      "date": "2026-09-20",
+      "sha": "8fba7ab",
+      "message": "Fail closed on mixed Stripe test/live billing configuration"
+    },
+    {
+      "date": "2026-09-21",
+      "sha": "54005fb",
+      "message": "V1.02: lock owner monitor on public Pages"
+    }
+  ]
+}

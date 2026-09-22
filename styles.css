@@ -91,3 +91,14 @@ body.owner-mode .workspace{padding-top:14px}
 .owner-chart-tooltip span{display:block}
 .owner-chart-method{margin:8px 0 0;color:#657b92;font-size:9px;line-height:1.45}
 @media(max-width:700px){.owner-growth-head strong{font-size:16px}.owner-growth-head span{font-size:8px}}
+
+/* Owner Control is intentionally visually distinct from ordinary customer controls. */
+.owner-access-button{display:flex;align-items:center;gap:8px;border-color:#b18a4b;background:linear-gradient(135deg,rgba(177,138,75,.18),rgba(51,140,255,.12));color:#f4d58f;padding:7px 13px;box-shadow:0 0 0 1px rgba(177,138,75,.08),0 0 22px rgba(177,138,75,.08)}
+.owner-access-button:hover{border-color:#e0b968;color:#fff;background:linear-gradient(135deg,rgba(177,138,75,.26),rgba(51,140,255,.18))}
+.owner-access-button .owner-access-lock{font-size:16px;line-height:1}
+.owner-access-button span:last-child{display:grid;text-align:left;line-height:1.05}
+.owner-access-button strong{font:600 11px 'Space Grotesk';letter-spacing:.25px}
+.owner-access-button small{margin-top:3px;color:#a99672;font-size:8px;letter-spacing:.35px}
+.owner-entry-note{margin-top:14px!important;color:#7f91a8!important;font-size:11px!important}
+.owner-entry-note strong{color:#e4c27f}
+@media(max-width:700px){.owner-access-button{padding:7px 9px}.owner-access-button small{display:none}.owner-access-button strong{font-size:10px}.owner-access-button .owner-access-lock{display:none}}

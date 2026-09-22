@@ -8,13 +8,13 @@
   <meta name="description" content="PI — Think. Plan. Execute. With You." />
   <title>PI — Assistant</title>
   <link rel="canonical" href="https://pisolutions9.github.io/Pisolutions9/" />
-  <link rel="stylesheet" href="styles.css?v=20260921-owner-growth-interactive" />
+  <link rel="stylesheet" href="styles.css?v=20260922-owner-control-visible" />
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="PI home"><span class="mark">π</span><span><strong>PI</strong><small>Think. Plan. Execute. With You.</small></span></a>
-      <div class="top-actions"><button id="billingAction" class="sync-button" type="button" hidden>Upgrade</button><button id="ownerAccess" class="sync-button" type="button">Owner sign in</button><button id="syncDevice" class="sync-button" type="button">Sync devices</button><div class="status" data-state="idle" role="status"><span class="dot"></span><span id="systemStatus">Ready to ask</span></div></div>
+      <div class="top-actions"><button id="billingAction" class="sync-button" type="button" hidden>Upgrade</button><button id="ownerAccess" class="sync-button owner-access-button" type="button" aria-haspopup="dialog" aria-controls="ownerDialog"><span class="owner-access-lock" aria-hidden="true">◈</span><span><strong>Owner Control</strong><small>Secure sign in</small></span></button><button id="syncDevice" class="sync-button" type="button">Sync devices</button><div class="status" data-state="idle" role="status"><span class="dot"></span><span id="systemStatus">Ready to ask</span></div></div>
     </header>
 
     <section class="workspace" aria-label="PI conversation">
@@ -42,7 +42,7 @@
       <div id="welcome" class="welcome">
         <div class="hero-mark">π</div>
         <h1>How can I help?</h1>
-        <p>Ask anything. PI keeps the work focused and the answer clear.</p>
+        <p>Ask anything. PI keeps the work focused and the answer clear.</p><p class="owner-entry-note">Owner? Use <strong>Owner Control</strong> above to securely open the private command center.</p>
       </div>
 
       <div class="conversation">
@@ -89,6 +89,6 @@
     </dialog>
     <input id="ownerToken" type="hidden" value="" />
   </main>
-  <script type="module" src="app.js?v=20260921-owner-growth-interactive"></script>
+  <script type="module" src="app.js?v=20260922-owner-control-visible"></script>
 </body>
 </html>
